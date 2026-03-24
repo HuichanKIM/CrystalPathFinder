@@ -41,12 +41,11 @@
 
 
 ## 🏁 Quick Start
-*   **Language:** Open the Project
-Open CrystalPathFinding.dproj in Delphi 12 Athens or later.
+*   **Open the Project:** Open CrystalPathFinding.dproj in Delphi 12 Athens or later.
 
-*   **Language:** Build and Run
+*   **Build and Run:**  Press F9 to compile and run the application.
 
-* **Click the Load Map button:** to import a map image and start testing.
+*   **Click the Load Map button:** to import a map image and start testing.
 
 ## 📄 Analysis Logic (Height Map)
 
