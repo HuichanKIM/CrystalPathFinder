@@ -70,4 +70,4 @@ Open CrystalPathFinding.dproj in Delphi 12 Athens or later.
 
 * This project is distributed under the MIT License. You are free to modify and use it for any purpose.
 
-* Developed with ❤️ using Delphi 13.1 Florence
+* Developed with ❤️ using Delphi 12 Athens and 13.1 Florence
