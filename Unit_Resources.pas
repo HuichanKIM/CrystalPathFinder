@@ -17,11 +17,8 @@ uses
 
 type
   TForm_Resources = class(TForm)
-    Image_DefaultMap: TImage;
-    Image_DefaultMap2: TImage;
     Image_PosIcon_S: TImage;
     Image_PosIcon_F: TImage;
-    Image_Logo0: TImage;
     Image_Logo: TImage;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
