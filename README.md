@@ -18,6 +18,10 @@
 
 ## 📺 Screenshots
 
+* Original Image (from Google Map / Seoul, Korea )
+
+![./Images/mapsample_11](./Images/mapsample_11.png)
+
 * Optimal Path Result
 
 ![./Images/snapshot_0](./Images/snapshot_0.png)
