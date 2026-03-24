@@ -3,7 +3,8 @@
 ![./Images/Snapshot_Form](./Images/logo.png)
 
 **Crystal Path Finding** is a high-performance pathfinding engine developed with Delphi 12 Athens and the FMX (FireMonkey) framework. It goes beyond simple grid-based algorithms by analyzing real-world map images (Height Maps) to simulate and calculate optimal paths based on terrain difficulty in real-time.
-* This program is still in the experimental stage 
+* This program is still in the experimental stage
+* Infographics <https://github.com/HuichanKIM/CrystalPathFinder/blob/main/InfoGraphics/CrystalPathFinder.html>
 
 ## 🚀 Key Features
 
