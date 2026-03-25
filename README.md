@@ -64,7 +64,7 @@
 
 ## 🎓 Infographics
 
-![./Images/infographic_en1](./Images/infographic_en1.png)
+![./Images/infographic_en3](./Images/infographic_en3.png)
 
 ## 🤝 Contributing
 
