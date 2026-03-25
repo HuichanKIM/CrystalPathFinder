@@ -20,6 +20,7 @@ type
     Image_PosIcon_S: TImage;
     Image_PosIcon_F: TImage;
     Image_Logo: TImage;
+    Image1: TImage;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private

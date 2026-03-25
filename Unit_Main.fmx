@@ -35,7 +35,7 @@ object FormMain: TFormMain
         Opacity = 0.800000011920929000
         Margins.Left = 20.000000000000000000
         Position.X = 20.000000000000000000
-        Size.Width = 205.000000000000000000
+        Size.Width = 185.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 18.000000000000000000
@@ -65,6 +65,8 @@ object FormMain: TFormMain
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 3
+          ParentShowHint = False
+          ShowHint = True
         end
         object Button_Reset: TButton
           Action = Action_ResetMap
@@ -80,6 +82,8 @@ object FormMain: TFormMain
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 0
+          ParentShowHint = False
+          ShowHint = True
         end
         object Button_LoadMap: TButton
           Action = Action_LoadMap
@@ -95,9 +99,12 @@ object FormMain: TFormMain
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 4
+          ParentShowHint = False
+          ShowHint = True
         end
         object Button_Heighlight: TButton
           Align = Left
+          Hint = 'Weight ( Ctrl+A )'
           Margins.Left = 5.000000000000000000
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
@@ -109,6 +116,8 @@ object FormMain: TFormMain
           Size.PlatformDefault = False
           TabOrder = 2
           Text = 'Weight'
+          ParentShowHint = False
+          ShowHint = True
           OnMouseDown = Button_HeighlightMouseDown
           OnMouseUp = Button_HeighlightMouseUp
         end
@@ -139,7 +148,7 @@ object FormMain: TFormMain
       OnMouseWheel = PaintBox_MapMouseWheel
       OnPaint = PaintBox_MapPaint
     end
-    object mvOptions: TMultiView
+    object MultiView_Options: TMultiView
       DrawerOptions.Placement = Right
       NavigationPaneOptions.CollapsedWidth = 225.000000000000000000
       Size.Width = 250.000000000000000000
@@ -157,8 +166,9 @@ object FormMain: TFormMain
         object ComboBox_Kind: TComboBox
           Items.Strings = (
             'Simple (4-Way)'
-            'Diagonal (8-Way)')
-          ItemIndex = 1
+            'Diagonal (8-Way)'
+            'DiagonalEx'
+            'Hexagonal')
           Position.X = 77.000000000000000000
           Position.Y = 101.000000000000000000
           Size.Width = 124.000000000000000000
@@ -34771,7 +34781,7 @@ object FormMain: TFormMain
     object Action_Highleght: TAction
       Text = 'Weight'
       Hint = 'Weight'
-      ShortCut = 16456
+      ShortCut = 16449
     end
     object Action_Options: TAction
       Text = 'Options'

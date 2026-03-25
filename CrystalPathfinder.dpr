@@ -3,9 +3,6 @@ program CrystalPathfinder;
 { **************************************************************************** }
 { Crystal Path Finder - High Performance Version for Delphi 13 Florence        }
 { Optimized with Binary Heap, Minimal Memory Allocation and Parallel Safety    }
-{ ---------------------------------------------------------------------------- }
-{                                                                              }
-{ This is inspired by https://github.com/d-mozulyov/CrystalPathFinding         }
 { **************************************************************************** }
 
 uses
