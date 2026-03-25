@@ -62,6 +62,11 @@
 
 * Multiplier: User-defined sensitivity scale for terrain difficulty.
 
+## 🎓 Infographics
+
+![./Infographics/infographic_1](./Infographics/infographic_1.png)
+![./Infographics/infographic_2](./Infographics/infographic_2.png)
+
 ## 🤝 Contributing
 
 * This is an open-source project and all contributions are welcome!
