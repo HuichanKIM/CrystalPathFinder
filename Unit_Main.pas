@@ -45,14 +45,27 @@ type
     LayoutRoot: TLayout;
     LayoutHeader: TLayout;
     Label_Title: TLabel;
+    PaintBox_Map: TPaintBox;
     Button_Reset: TButton;
+    ActionList1: TActionList;
+    Action_Screenshot: TAction;
+    Action_Analysis: TAction;
+    Action_LoadMap: TAction;
+    Action_Highleght: TAction;
+    Action_Options: TAction;
+    Action_ResetMap: TAction;
     ComboBox_Kind: TComboBox;
     CheckBoox_Parallel: TCheckBox;
+    CheckBox_Calcurate: TCheckBox;
+    CheckBox_CellWeight: TCheckBox;
+    CheckBox_SmoothLine: TCheckBox;
+    CheckBox_Analysis: TCheckBox;
+    TrackBar_Weight: TTrackBar;
+    TrackBar_TileSize: TTrackBar;
+    TrackBar_CellWeight: TTrackBar;
     Label_Performance: TLabel;
-    PaintBox_Map: TPaintBox;
     Label_WeightScale: TLabel;
     Layout_Buttons: TLayout;
-    TrackBar_Weight: TTrackBar;
     StyleBook1: TStyleBook;
     StatusBar_Map: TStatusBar;
     Label_Simbol: TLabel;
@@ -60,29 +73,16 @@ type
     MultiView_Options: TMultiView;
     MultiView_Background: TRectangle;
     Button_Options: TButton;
-    Label_ViewPos: TLabel;
     Button_LoadMap: TButton;
-    OpenDialog_Map: TOpenDialog;
-    ActionList1: TActionList;
-    Action_Screenshot: TAction;
+    Button_DefaultParams: TButton;
     Button_Heighlight: TButton;
-    CheckBox_FitToScreen: TCheckBox;
-    CheckBox_SmoothLine: TCheckBox;
-    CheckBox_Analysis: TCheckBox;
+    Label_ViewPos: TLabel;
+    OpenDialog_Map: TOpenDialog;
     Label_Grids: TLabel;
     Label_Zoom: TLabel;
-    Action_Analysis: TAction;
     Label_GridCellSize: TLabel;
-    TrackBar_Tilesize: TTrackBar;
-    Action_LoadMap: TAction;
-    Action_Highleght: TAction;
-    Action_Options: TAction;
-    Action_ResetMap: TAction;
     Label2: TLabel;
     Label3: TLabel;
-    CheckBox_Calcurate: TCheckBox;
-    CheckBox_CellWeight: TCheckBox;
-    TrackBar_CellWeight: TTrackBar;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -93,9 +93,8 @@ type
     procedure PaintBox_MapMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure PaintBox_MapMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
     procedure ComboBox_KindChange(Sender: TObject);
-    procedure CheckBox_FitToScreenChange(Sender: TObject);
     procedure TrackBar_WeightTracking(Sender: TObject);
-    procedure TrackBar_TilesizeTracking(Sender: TObject);
+    procedure TrackBar_TileSizeTracking(Sender: TObject);
     procedure TrackBar_CellWeightChange(Sender: TObject);
     procedure Button_HeighlightMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Button_HeighlightMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -105,12 +104,15 @@ type
     procedure Action_LoadMapExecute(Sender: TObject);
     procedure Action_ResetMapExecute(Sender: TObject);
     procedure Label_TitleClick(Sender: TObject);
+    procedure Button_DefaultParamsClick(Sender: TObject);
+    procedure TrackBar_TileSizeChange(Sender: TObject);
   private
     FTileMap: TTileMap;
     FCurrentPath: TTileMapPath;
     FBackgroundBitmap: TBitmap;
     FViewOffset: TPointF;
     FCellSize: Single;
+    FSetCellSize: Single;
     FStartPos: TPoint;
     FFinishPos: TPoint;
     FWeights: TArray<Byte>;
@@ -132,45 +134,46 @@ type
     FCurrGridX: Integer;
     FCurrGridY: Integer;
 
-    FSetCellSize: Single;
     procedure InitializeGrid(const ADefault: Boolean = False);
     procedure UpdatePath(const AUpdateStatus: Boolean = False);
 
-    function ScreenToGridF(X, Y: Single): TPoint;
+    function ScreenToGridF(AX, AY: Single): TPoint;
     procedure ScreenToGridP(const AScreenPos: TPointF; out AGX, AGY: Integer);
-    function GridToScreenF(const GridPos: TPoint): TPointF;
+    function GridToScreenF(const AGridPos: TPoint): TPointF;
     procedure GridToScreenP(const AGX, AGY: Integer; out AScreenPos: TPointF);
-    function HexCellCenter(const GX, GY: Integer): TPointF;
+    function HexCellCenter(const AGX, AGY: Integer): TPointF;
     function HexCellAt(const AScreenPos: TPointF): TPoint;
 
-    procedure AnalyzeHeightMap;                                                 { Analysis Logic in Height Map Style }
-    procedure FitToScreen;
-    procedure CenterMap;
+    procedure AnalyzeHeightMap;
+    procedure CenterMap(const AInitFlag: Boolean = False);
     procedure ConstrainViewOffset;
     procedure AutoCropImage(ABitmap: TBitmap);
     procedure CalculateWeightsFromImage(const ADefault: Boolean = False);
     procedure AdjustMarkersToViewport;
-    procedure HexMapPixelSize(out AW, AH: Single);
-    procedure DrawTiles(Canvas: TCanvas);
+    procedure HexMapPixelSize(out AWidth, AHeight: Single);
+    procedure DrawTiles(ACanvas: TCanvas);
     procedure DrawTilesEx(ACanvas: TCanvas);
     procedure DrawGrid(ACanvas: TCanvas);
     procedure DrawGridEx(ACanvas: TCanvas);
-    procedure DrawMarker(Canvas: TCanvas; const GridPos: TPoint; const Color1, Color2: TAlphaColor; const Symbol: string);  overload;
-    procedure DrawMarker(Canvas: TCanvas; const APosFlag: Integer; const GridPos: TPoint); overload;
+    procedure DrawMarker(ACanvas: TCanvas; const AGridPos: TPoint; const AColor1, AColor2: TAlphaColor; const ASymbol: string);  overload;
+    procedure DrawMarker(ACanvas: TCanvas; const APosFlag: Integer; const AGridPos: TPoint); overload;
     procedure DrawSmoothPath(ACanvas: TCanvas; const ASmoothFlag: Boolean = False);
 
-    function IsInGrid(GX, GY: Integer): Boolean;
+    function IsInGrid(AGX, AGY: Integer): Boolean;
     function IsPathValid: Boolean;
-    function GetWeightColor(const Weight: Byte): TAlphaColor;
-    procedure SetCellWeight(const GridPos: TPoint; Value: Byte);
+    function GetWeightColor(const AWeight: Byte): TAlphaColor;
+    procedure SetCellWeight(const AGridPos: TPoint; Value: Byte);
     procedure SetZoomRatio(const Value: Single);
+    procedure SetSetCellSize(const Value: Single);
 
     procedure UpdateStatusLabel();
     procedure SaveScreenshot(const ADialogFlag: Boolean = False);
     procedure ShowToastAlert(const AMsg: string);
     procedure AnimationFinishedEvent(Sender: TObject);
     procedure SetupMultiViewPopup;
-    procedure SetSetCellSize(const Value: Single);
+
+    procedure LoadIniOptions;
+    procedure SaveIniOptions;
   public
     property ZoomRatio: Single    read FZoomRatio    write SetZoomRatio;
     property SetCellSize: Single  read FSetCellSize  write SetSetCellSize;
@@ -187,6 +190,7 @@ uses
   System.Math,
   System.IOUtils,
   System.Math.Vectors,
+  System.IniFiles,
   FMX.Ani;
 
 
@@ -207,7 +211,7 @@ begin
   Self.Caption :=       C_CaptionTitle;
 
   FIsHighlightMode :=   False;
-  FLockMapFlag :=       True;
+  FLockMapFlag :=       True;                                                   // Lock Update PaintBox_Map.RePaint ...
   FWeightMultiplier :=  0.5;
   FCurrentWightFlag :=  0;
   FDefaultBackColor :=  $FF16253D;
@@ -215,10 +219,9 @@ begin
 
   FStartPos :=          TPoint.Create(10, 10);
   FFinishPos :=         TPoint.Create(110, 110);
-  FCellSize :=          6.0;  {  ... }
+  FCellSize :=          C_CellSizeDefault;
   FViewOffset :=        TPointF.Create(100, 100);
 
-  FCellSize :=          C_CellSizeDefault;
   FDragMode :=          TDragMode.None;
   FBackgroundBitmap :=  TBitmap.Create;
 
@@ -227,7 +230,6 @@ begin
   Label_Performance.Visible :=    False;
   CheckBoox_Parallel.IsChecked := True;
 
-  FViewOffset := TPointF.Zero;
   with ComboBox_Kind do
   begin
     OnChange := nil;
@@ -243,9 +245,10 @@ begin
   TrackBar_Weight.Value := 5;
   Label_WeightScale.Text := Format('Map Weight Scale %.2f', [TrackBar_Weight.Value / 10]);
   FSetCellSize := C_CellSizeDefault;
-  TrackBar_Tilesize.Value := C_CellSizeDefault;
+  TrackBar_TileSize.Value := C_CellSizeDefault;
   FZoomRatio := 1.0;
-  CheckBox_FitToScreen.IsChecked := False;
+
+  LoadIniOptions();
   SetupMultiViewPopup;
 
   { Create initial small map to be resized in InitializeGrid }
@@ -257,9 +260,55 @@ end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  SaveIniOptions();
   FCurrentPath.Free;
   FTileMap.Free;
-  FBackgroundBitmap.Free;
+  if Assigned(FBackgroundBitmap) then FBackgroundBitmap.Free;
+end;
+
+procedure TFormMain.LoadIniOptions();
+begin
+  var _IniConfig: TMemIniFile := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
+  if Assigned(_IniConfig) then
+  with _IniConfig do
+  try
+    CheckBox_Analysis.IsChecked    := ReadBool   ('UIOptions',   'Analysis',     False);
+    CheckBox_Calcurate.IsChecked   := ReadBool   ('UIOptions',   'Calcurate',    True);
+    CheckBoox_Parallel.IsChecked   := ReadBool   ('UIOptions',   'Parallelfor',  True);
+    CheckBox_CellWeight.IsChecked  := ReadBool   ('UIOptions',   'Cellweight',   False);
+    CheckBox_SmoothLine.IsChecked  := ReadBool   ('UIOptions',   'Soothline',    False);
+
+    TrackBar_Weight.Value          := ReadFloat  ('MapParams',   'SetWeight',    5.0);
+    TrackBar_TileSize.Value        := ReadFloat  ('MapParams',   'Tilesize',     C_CellSizeDefault);
+    TrackBar_CellWeight.Value      := ReadFloat  ('MapParams',   'CellWeight',   100.0);
+
+    ComboBox_Kind.ItemIndex        := ReadInteger('MapParams',   'MapKind',      1);
+  finally
+    Free;
+  end;
+end;
+
+procedure TFormMain.SaveIniOptions();
+begin
+  var _IniConfig: TMemIniFile := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
+  if Assigned(_IniConfig) then
+  with _IniConfig do
+  try
+    WriteBool   ('UIOptions',    'Analysis',      CheckBox_Analysis.IsChecked);
+    WriteBool   ('UIOptions',    'Calcurate',     CheckBox_Calcurate.IsChecked);
+    WriteBool   ('UIOptions',    'Parallelfor',   CheckBoox_Parallel.IsChecked);
+    WriteBool   ('UIOptions',    'Cellweight',    CheckBox_CellWeight.IsChecked);
+    WriteBool   ('UIOptions',    'Soothline',     CheckBox_SmoothLine.IsChecked);
+
+    WriteFloat  ('MapParams',    'SetWeight',     TrackBar_Weight.Value);
+    WriteFloat  ('MapParams',    'Tilesize',      TrackBar_TileSize.Value);
+    WriteFloat  ('MapParams',    'CellWeight',    TrackBar_CellWeight.Value);
+
+    WriteInteger('MapParams',    'MapKind',       ComboBox_Kind.ItemIndex);
+  finally
+    UpdateFile;
+    Free;
+  end;
 end;
 
 procedure TFormMain.FormResize(Sender: TObject);
@@ -268,7 +317,6 @@ begin
 
   if FTileMap <> nil then
   begin
-    FitToScreen;
     CenterMap;
   end;
   // ------------------------------------------------------------------------ //
@@ -281,7 +329,7 @@ begin
   with MultiView_Options do
   begin
     Mode := TMultiViewMode.Popover;
-    PopoverOptions.PopupHeight := 450;
+    PopoverOptions.PopupHeight := 480;
     MasterButton := Button_Options;
     TargetControl := nil;
 
@@ -361,12 +409,12 @@ begin
   end;
 end;
 
-procedure TFormMain.SetCellWeight(const GridPos: TPoint; Value: Byte);
+procedure TFormMain.SetCellWeight(const AGridPos: TPoint; Value: Byte);
 begin
-  if (FTileMap <> nil) and (GridPos.X >= 0) and (GridPos.X < FTileMap.Width) and
-                           (GridPos.Y >= 0) and (GridPos.Y < FTileMap.Height) then
+  if (FTileMap <> nil) and (AGridPos.X >= 0) and (AGridPos.X < FTileMap.Width) and
+                           (AGridPos.Y >= 0) and (AGridPos.Y < FTileMap.Height) then
   begin
-    var _Idx := GridPos.Y * FTileMap.Width + GridPos.X;
+    var _Idx := AGridPos.Y * FTileMap.Width + AGridPos.X;
     FWeights[_Idx] := Value;
   end;
 end;
@@ -379,36 +427,19 @@ begin
   end;
 end;
 
-function TFormMain.GetWeightColor(const Weight: Byte): TAlphaColor;
+function TFormMain.GetWeightColor(const AWeight: Byte): TAlphaColor;
 begin
   Result := MakeAlphaColor(TAlphaColors.Greenyellow, 40);
-  // Visualize colors according to the brightness concentration
-  // Red with higher weights and Yellow/Green with lower weights
-  if Weight > 180 then Result := MakeAlphaColor(TAlphaColors.Red, 130) else
-  if Weight > 120 then Result := MakeAlphaColor(TAlphaColors.Orange, 100) else
-  if Weight > 60  then Result := MakeAlphaColor(TAlphaColors.Yellow, 70);
+  { Visualize colors according to the brightness concentration
+    Red with higher weights and Yellow/Green with lower weights }
+  if AWeight > 180 then Result := MakeAlphaColor(TAlphaColors.Red, 130) else
+  if AWeight > 120 then Result := MakeAlphaColor(TAlphaColors.Orange, 100) else
+  if AWeight > 60  then Result := MakeAlphaColor(TAlphaColors.Yellow, 70);
 end;
 
 function TFormMain.IsPathValid: Boolean;
 begin
   Result := (FCurrentPath.Count > 0);
-end;
-
-procedure TFormMain.FitToScreen;
-begin
-  if (FTileMap = nil) or (PaintBox_Map.Width <= 0) then Exit;
-
-  if CheckBox_FitToScreen.IsChecked then
-    begin
-      var _Ratio_W :=  (PaintBox_Map.Width * 0.95) /  FTileMap.Width;
-      var _Ratio_H :=  (PaintBox_Map.Height * 0.95) / FTileMap.Height;
-      FCellSize := Min(_Ratio_W, _Ratio_H);
-
-    end
-  else
-    FCellSize := FSetCellSize;
-
-  FCellSize := EnsureRange(FCellSize, 0.5, 500.0);
 end;
 
 procedure TFormMain.ConstrainViewOffset;
@@ -422,7 +453,7 @@ begin
     { Real hex pixel dimensions }
     _MapWidth :=  (FTileMap.Width  - 1) * FCellSize * 0.75 + FCellSize;
     _MapHeight := (FTileMap.Height + 0.5) * FCellSize * C_Sqrt3_2;
-  end;  
+  end;
 
   if _MapWidth <= PaintBox_Map.Width then
     FViewOffset.X := (PaintBox_Map.Width - _MapWidth) / 2                           // If it's smaller than the screen, center
@@ -435,7 +466,21 @@ begin
     FViewOffset.Y := EnsureRange(FViewOffset.Y, PaintBox_Map.Height - _MapHeight, 0);// Larger than the screen, limit the margin
 end;
 
-procedure TFormMain.CenterMap;
+procedure TFormMain.HexMapPixelSize(out AWidth, AHeight: Single);
+begin
+  if FTileMap.Kind = TTileMapKind.mkHexagonal then
+    begin
+      AWidth :=  (FTileMap.Width  - 1) *   FCellSize * 0.75 + FCellSize;
+      AHeight := (FTileMap.Height + 0.5) * FCellSize * C_Sqrt3_2;
+    end
+  else
+    begin
+      AWidth :=  FTileMap.Width  * FCellSize;
+      AHeight := FTileMap.Height * FCellSize;
+    end;
+end;
+
+procedure TFormMain.CenterMap(const AInitFlag: Boolean = False);
 begin
   if FTileMap = nil then Exit;
 
@@ -445,16 +490,16 @@ begin
 
   FViewOffset.X := (PaintBox_Map.Width  - _MapWidth) / 2;
   FViewOffset.Y := (PaintBox_Map.Height - _MapHeight) / 2;
-
-  ConstrainViewOffset;
+  if AInitFlag then
+    ConstrainViewOffset;
 end;
 
 { ============================================================================ }
 {  Replace AdjustMarkersToViewport                                             }
 {                                                                              }
 {  Original computed start/finish from the screen corners using ScreenToGridF. }
-{  For hex, the corners need hex-aware conversion and the centre calculation  }
-{  is the same (it works on grid coordinates, which are now correct).         }
+{  For hex, the corners need hex-aware conversion and the centre calculation   }
+{  is the same (it works on grid coordinates, which are now correct).          }
 { ============================================================================ }
 procedure TFormMain.AdjustMarkersToViewport;
 begin
@@ -463,7 +508,7 @@ begin
   var _FirstVisCol: Integer := 0;
   var _LastVisCol:  Integer := 0;
   var _FirstVisRow: Integer := 0;
-  var _LastVisRow:  Integer := 0;  
+  var _LastVisRow:  Integer := 0;
   if FTileMap.Kind = TTileMapKind.mkHexagonal then
     begin
       { Find which columns and rows are actually on screen by scanning
@@ -485,14 +530,14 @@ begin
 
       { Clamp to full grid if calculation yields inverted range }
       if _FirstVisCol > _LastVisCol then
-        begin 
-          _FirstVisCol := 0; 
-          _LastVisCol := FTileMap.Width - 1; 
+        begin
+          _FirstVisCol := 0;
+          _LastVisCol := FTileMap.Width - 1;
         end;
       if _FirstVisRow > _LastVisRow then
         begin
-          _FirstVisRow := 0; 
-          _LastVisRow := FTileMap.Height - 1; 
+          _FirstVisRow := 0;
+          _LastVisRow := FTileMap.Height - 1;
         end;
     end
   else
@@ -504,7 +549,7 @@ begin
       _FirstVisRow :=   EnsureRange(_GridStart.Y, 0, FTileMap.Height - 1);
       _LastVisCol  :=   EnsureRange(_GridEnd.X, 0,   FTileMap.Width  - 1);
       _LastVisRow  :=   EnsureRange(_GridEnd.Y, 0,   FTileMap.Height - 1);
-    end;  
+    end;
 
   var _MidRow := (_FirstVisRow + _LastVisRow) div 2;
   var _SpanX  := _LastVisCol - _FirstVisCol;
@@ -564,17 +609,16 @@ end;
 procedure TFormMain.InitializeGrid(const ADefault: Boolean = False);
 begin
   var _CellSize := FSetCellSize;
-  if ADefault then _CellSize := TrackBar_Tilesize.Value;
+  if ADefault then _CellSize := TrackBar_TileSize.Value;
   FSetCellSize := _CellSize;
+
   { Calculate grid dimensions based on current PaintBox size }
   var _TileWidth :=  Max(5, Trunc(PaintBox_Map.Width /  FSetCellSize));
   var _TileHeight := Max(5, Trunc(PaintBox_Map.Height / FSetCellSize));
 
-  if not FBackgroundBitmap.IsEmpty then
+  if not FLockMapFlag and Assigned(FBackgroundBitmap) then
   begin
-    AutoCropImage(FBackgroundBitmap);
-
-    if FTileMap.Kind = TTileMapKind.mkHexagonal then
+    if FTileMap.Kind = TTileMapKind.mkHexagonal then   {Deprecating ... }
       begin
         _TileWidth  := Max(10, Trunc(FBackgroundBitmap.Width  / (FSetCellSize * 0.75)));
         _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / (FSetCellSize * C_Sqrt3_2)));
@@ -586,29 +630,36 @@ begin
       end;
   end;
 
-  FCurrentPath.Free;
+
   SetLength(FWeights, _TileWidth * _TileHeight);
   FillChar(FWeights[0], Length(FWeights) * SizeOf(Byte), 0);
+  // Create New TileMap  ---------------------------------------------------- //
+  var _tilemapkind := TTileMapKind(ComboBox_Kind.ItemIndex);
+  if FLockMapFlag then  _tilemapkind := TTileMapKind.mkDiagonal;
 
   FreeAndNil(FTileMap);
-  FTileMap := TTileMap.Create(_TileWidth, _TileHeight, TTileMapKind(ComboBox_Kind.ItemIndex));
+  FTileMap := TTileMap.Create(_TileWidth, _TileHeight, _tilemapkind);
   FillChar(FTileMap.Data^, _TileWidth * _TileHeight, 0);
-
-  FStartPos :=  TPoint.Create(Trunc(_TileWidth * 0.1), Trunc(_TileHeight * 0.5));
-  FFinishPos := TPoint.Create(Trunc(_TileWidth * 0.9), Trunc(_TileHeight * 0.5));
-
-  if (not FBackgroundBitmap.IsEmpty) and CheckBox_Calcurate.IsChecked then
-    CalculateWeightsFromImage;
-
-  // ------------------------------------------------------------------------ //
-  AnalyzeHeightMap;
-  FitToScreen;
-  CenterMap;
-  AdjustMarkersToViewport;
-  UpdatePath(True);
   // ------------------------------------------------------------------------ //
 
   MultiView_Background.Enabled := not FLockMapFlag;
+
+  if FLockMapFlag then Exit;
+
+  FCurrentPath.Free;
+  FStartPos :=  TPoint.Create(Trunc(_TileWidth * 0.1), Trunc(_TileHeight * 0.5));
+  FFinishPos := TPoint.Create(Trunc(_TileWidth * 0.9), Trunc(_TileHeight * 0.5));
+  if CheckBox_Calcurate.IsChecked then
+    CalculateWeightsFromImage;
+
+  FCellSize := FSetCellSize;
+  // ---------------------------------------------------------------------- //
+  AnalyzeHeightMap;
+  CenterMap;
+  AdjustMarkersToViewport;
+  UpdatePath(True);
+  // ---------------------------------------------------------------------- //
+
 end;
 
   { ---- Classify a Single Pixel into a Terrain Type ------------------------- }
@@ -831,9 +882,9 @@ begin
   end;
 end;
 
-function TFormMain.IsInGrid(GX, GY: Integer): Boolean;
+function TFormMain.IsInGrid(AGX, AGY: Integer): Boolean;
 begin
-  Result := (GX >= 0) and (GX < FTileMap.Width) and (GY >= 0) and (GY < FTileMap.Height);
+  Result := (AGX >= 0) and (AGX < FTileMap.Width) and (AGY >= 0) and (AGY < FTileMap.Height);
 end;
 
 procedure TFormMain.UpdatePath(const AUpdateStatus: Boolean = False);
@@ -1021,28 +1072,13 @@ end;
 
 { Returns the screen-space centre of hex cell (GX, GY). }
 { Flat-top orientation, even-column offset.              }
-function TFormMain.HexCellCenter(const GX, GY: Integer): TPointF;
+function TFormMain.HexCellCenter(const AGX, AGY: Integer): TPointF;
 begin
   var _HexH    := FCellSize * C_Sqrt3_2;
   var _ColStep := FCellSize * 0.75;
-  var _OddOff  := IfThen(Odd(GX), _HexH * 0.5, 0.0);
-  Result.X := FViewOffset.X + GX * _ColStep + FCellSize * 0.5;
-  Result.Y := FViewOffset.Y + GY * _HexH + _OddOff + _HexH * 0.5;
-end;
-
-
-procedure TFormMain.HexMapPixelSize(out AW, AH: Single);
-begin
-  if FTileMap.Kind = TTileMapKind.mkHexagonal then
-  begin
-    AW := (FTileMap.Width  - 1) * FCellSize * 0.75 + FCellSize;
-    AH := (FTileMap.Height + 0.5) * FCellSize * C_Sqrt3_2;
-  end
-  else
-  begin
-    AW := FTileMap.Width  * FCellSize;
-    AH := FTileMap.Height * FCellSize;
-  end;
+  var _OddOff  := IfThen(Odd(AGX), _HexH * 0.5, 0.0);
+  Result.X := FViewOffset.X + AGX * _ColStep + FCellSize * 0.5;
+  Result.Y := FViewOffset.Y + AGY * _HexH + _OddOff + _HexH * 0.5;
 end;
 
 { Returns the grid cell (GX,GY) that contains screen point AScreenPos.       }
@@ -1096,15 +1132,15 @@ end;
 { ---- ScreenToGridF -------------------------------------------------------- }
 { Original used pure division: Floor((X - OffsetX) / CellSize)                }
 { New: delegates to HexCellAt when in hex mode.                               }
-function TFormMain.ScreenToGridF(X, Y: Single): TPoint;
+function TFormMain.ScreenToGridF(AX, AY: Single): TPoint;
 begin
   if (FTileMap = nil) or (FCellSize <= 0) then Exit(TPoint.Zero);
 
   if FTileMap.Kind = TTileMapKind.mkHexagonal then
-    Result := HexCellAt(PointF(X, Y))
+    Result := HexCellAt(PointF(AX, AY))
   else
-    Result := TPoint.Create(Floor((X - FViewOffset.X) / FCellSize),
-                            Floor((Y - FViewOffset.Y) / FCellSize));
+    Result := TPoint.Create(Floor((AX - FViewOffset.X) / FCellSize),
+                            Floor((AY - FViewOffset.Y) / FCellSize));
 end;
 
 { ---- ScreenToGridP -------------------------------------------------------- }
@@ -1130,15 +1166,15 @@ end;
 { screen point that should be used as the cell's visual centre.               }
 { For hex: returns the true hex centre (not the top-left corner).             }
 { For square: returns the cell centre (adds half CellSize, matching original) }
-function TFormMain.GridToScreenF(const GridPos: TPoint): TPointF;
+function TFormMain.GridToScreenF(const AGridPos: TPoint): TPointF;
 begin
   if (FTileMap = nil) or (FCellSize <= 0) then Exit(PointF(0, 0));
 
   if FTileMap.Kind = TTileMapKind.mkHexagonal then
-    Result := HexCellCenter(GridPos.X, GridPos.Y)
+    Result := HexCellCenter(AGridPos.X, AGridPos.Y)
   else
-    Result := PointF(GridPos.X * FCellSize + FViewOffset.X + FCellSize / 2,
-                     GridPos.Y * FCellSize + FViewOffset.Y + FCellSize / 2);
+    Result := PointF(AGridPos.X * FCellSize + FViewOffset.X + FCellSize / 2,
+                     AGridPos.Y * FCellSize + FViewOffset.Y + FCellSize / 2);
 end;
 
 { ---- GridToScreenP -------------------------------------------------------- }
@@ -1158,7 +1194,7 @@ begin
 end;
 
 
-procedure TFormMain.DrawTiles(Canvas: TCanvas);
+procedure TFormMain.DrawTiles(ACanvas: TCanvas);
 begin
   // Set Viewport Rectangle
   var _Idx: Integer := 0;
@@ -1181,13 +1217,13 @@ begin
 
       if _Val = 1 then
         begin
-          Canvas.Fill.Color := MakeColor(TAlphaColors.Black, 150);
-          Canvas.FillRect(_R, 0, 0, [], 1.0);
+          ACanvas.Fill.Color := MakeColor(TAlphaColors.Black, 150);
+          ACanvas.FillRect(_R, 0, 0, [], 1.0);
         end
       else if FWeights[_Idx] > 50 then //10 then
         begin
-          Canvas.Fill.Color := GetWeightColor(FWeights[_Idx]);
-          Canvas.FillRect(_R, 0, 0, [], 1);
+          ACanvas.Fill.Color := GetWeightColor(FWeights[_Idx]);
+          ACanvas.FillRect(_R, 0, 0, [], 1);
         end;
     end;
 end;
@@ -1327,10 +1363,8 @@ end;
 
 procedure TFormMain.PaintBox_MapPaint(Sender: TObject; Canvas: TCanvas);
 begin
-  var _MapWidth: Single :=  0;
-  var _MapHeight: Single := 0;
-  HexMapPixelSize(_MapWidth, _MapHeight);    
-  
+  if FTileMap = nil then Exit;
+
   if FLockMapFlag then
   begin
     if FBackgroundBitmap.IsEmpty then
@@ -1340,27 +1374,25 @@ begin
         else
           Exit;
       end;
-               
-    var _BgOpacity :=   IfThen(FIsHighlightMode, 0.3, 1.0);
-    var _DestRect := RectF(FViewOffset.X, FViewOffset.Y, FViewOffset.X + _MapWidth, FViewOffset.Y + _MapHeight);
-
     AutoCropImage(FBackgroundBitmap);
+    CenterMap(True);
+    //GetViewOffset();
+    var _BgOpacity :=   IfThen(FIsHighlightMode, 0.3, 1.0);
+    var _MapWidthPx :=  FTileMap.Width *  FCellSize;
+    var _MapHeightPx := FTileMap.Height * FCellSize;
+    var _DestRect :=    TRectF.Create(FViewOffset.x, FViewOffset.y, FViewOffset.x + _MapWidthPx, FViewOffset.y + _MapHeightPx);
 
-    Canvas.BeginScene;
     Canvas.DrawBitmap(FBackgroundBitmap, FBackgroundBitmap.BoundsF, _DestRect, _BgOpacity);
-    Canvas.EndScene;
-
-    CenterMap;
-    FitToScreen;
 
     Exit;
   end;
 
-  if FTileMap = nil then Exit;
-
+  var _MapWidth: Single :=  0;
+  var _MapHeight: Single := 0;
+  HexMapPixelSize(_MapWidth, _MapHeight);
 
   if Canvas.BeginScene then
-  try     
+  try
     var _State: TCanvasSaveState := Canvas.SaveState;
     try
       Canvas.IntersectClipRect(PaintBox_Map.LocalRect);
@@ -1396,37 +1428,37 @@ end;
 
 // -------------------------------------------------------------------------- //
 
-procedure TFormMain.DrawMarker(Canvas: TCanvas; const APosFlag: Integer; const GridPos: TPoint);
+procedure TFormMain.DrawMarker(ACanvas: TCanvas; const APosFlag: Integer; const AGridPos: TPoint);
 begin
-  var _SPos :=  GridToScreenF(GridPos);
+  var _SPos :=  GridToScreenF(AGridPos);
   var _MSize := Max(14, FCellSize * 1.3);
   var _R :=     RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
 
   if APosFlag = 0
-    then Canvas.DrawBitmap(R_PosIconS, R_PosIconRectF, _R,  1.0, True)
-    else Canvas.DrawBitmap(R_PosIconF, R_PosIconRectF, _R,  1.0, True)
+    then ACanvas.DrawBitmap(R_PosIconS, R_PosIconRectF, _R,  1.0, True)
+    else ACanvas.DrawBitmap(R_PosIconF, R_PosIconRectF, _R,  1.0, True)
 end;
 
-procedure TFormMain.DrawMarker(Canvas: TCanvas; const GridPos: TPoint; const Color1, Color2: TAlphaColor; const Symbol: string);
+procedure TFormMain.DrawMarker(ACanvas: TCanvas; const AGridPos: TPoint; const AColor1, AColor2: TAlphaColor; const ASymbol: string);
 begin
-  var _SPos :=  GridToScreenF(GridPos);
+  var _SPos :=  GridToScreenF(AGridPos);
   var _MSize := Max(14, FCellSize * 0.85);
-  var _R :=     RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
+  var _Rect :=  RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
 
-  Canvas.DrawBitmap(R_PosIconS, R_PosIconRectF, _R,  1.0, True);
+  ACanvas.DrawBitmap(R_PosIconS, R_PosIconRectF, _Rect,  1.0, True);
 
-  Canvas.Fill.Color := Color1;
-  Canvas.FillEllipse(_R, 1.0);
-  Canvas.Stroke.Color := Color2;
-  Canvas.Stroke.Thickness := 3;
-  Canvas.DrawEllipse(_R, 1.0);
+  ACanvas.Fill.Color := AColor1;
+  ACanvas.FillEllipse(_Rect, 1.0);
+  ACanvas.Stroke.Color := AColor2;
+  ACanvas.Stroke.Thickness := 3;
+  ACanvas.DrawEllipse(_Rect, 1.0);
 
   { Symbol Text }
   if FCellSize > 10 then
   begin
-    Canvas.Fill.Color := Color2;
-    Canvas.Font.Size :=  Max(7, _MSize * 0.5);
-    Canvas.FillText(_R, Symbol, False, 1.0, [], TTextAlign.Center, TTextAlign.Center);
+    ACanvas.Fill.Color := AColor2;
+    ACanvas.Font.Size :=  Max(7, _MSize * 0.5);
+    ACanvas.FillText(_Rect, ASymbol, False, 1.0, [], TTextAlign.Center, TTextAlign.Center);
   end;
 end;
 
@@ -1572,7 +1604,6 @@ begin
         PaintBox_Map.Cursor := TCursor(crDrag);
         FViewOffset := FViewOffset + (_NewPos - FLastMousePos);
         ConstrainViewOffset;                                                    // Apply restrictions on movement
-        CheckBox_FitToScreen.IsChecked := False;
         end;
     TDragMode.EditWeight:
       if IsInGrid(_GX, _GY) then
@@ -1611,7 +1642,6 @@ begin
     FViewOffset.X := FLastMousePos.X - (FLastMousePos.X - FViewOffset.X) * (FCellSize / _OldCellSize);
     FViewOffset.Y := FLastMousePos.Y - (FLastMousePos.Y - FViewOffset.Y) * (FCellSize / _OldCellSize);
     ConstrainViewOffset;                                                        // Restrict it from leaving the screen even when zoomed in
-    CheckBox_FitToScreen.IsChecked := False;
     PaintBox_Map.Repaint;
   end;
   
@@ -1637,11 +1667,31 @@ begin
   PaintBox_Map.Repaint;
 end;
 
+procedure TFormMain.Button_DefaultParamsClick(Sender: TObject);
+begin
+  FLockMapFlag := True;
+
+  CheckBox_Analysis.IsChecked    := False;
+  CheckBox_Calcurate.IsChecked   := True;
+  CheckBoox_Parallel.IsChecked   := True;
+  CheckBox_CellWeight.IsChecked  := False;
+  CheckBox_SmoothLine.IsChecked  := False;
+
+  TrackBar_Weight.Value          := 5.0;
+  TrackBar_TileSize.Value        := C_CellSizeDefault;
+  TrackBar_CellWeight.Value      := 100.0;
+
+  ComboBox_Kind.ItemIndex        := 1;
+
+  FLockMapFlag := False;
+  InitializeGrid(True);
+end;
+
 procedure TFormMain.UpdateStatusLabel();
 begin
   FZoomRatio := FCellSize / FSetCellSize;
   Label_Zoom.Text :=        Format('Zoom: %.0f%%  ', [FZoomRatio*100]);
-  Label_ViewPos.Text :=     Format('Grid : %dx%d | Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, FCurrentWeight, FCurrentWightFlag]);
+  Label_ViewPos.Text :=     Format('Grid : %dx%d | Cell Size : %d | Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, Round(FCellSize),  FCurrentWeight, FCurrentWightFlag]);
   Label_Grids.Text :=       Format('[ Grids ] %d x %d | Map Weight %.2f', [FTileMap.Width, FTileMap.Height, FWeightMultiplier]);
   Label_SInfos.Text :=      Format('Nodes: %d | Distance: %.1f', [FCurrentPath.Count, FCurrentPath.Distance]);
   Label_Performance.Text := Format('Performance: %d ms | Offset: (%.0f, %.0f)', [FPerformanceTick, FViewOffset.X, FViewOffset.Y]);
@@ -1653,25 +1703,21 @@ begin
   InitializeGrid(True);
 end;
 
-procedure TFormMain.CheckBox_FitToScreenChange(Sender: TObject);
-begin
-  if FLockMapFlag then Exit;
-
-  AnalyzeHeightMap;
-  UpdatePath(True);
-end;
-
-
 procedure TFormMain.TrackBar_CellWeightChange(Sender: TObject);
 begin
   TrackBar_CellWeight.Hint := 'Cell Weight - '+IntToStr(Trunc(TrackBar_CellWeight.Value));
   CheckBox_CellWeight.Text := 'Cell-W '+IntToStr(Trunc(TrackBar_CellWeight.Value));
 end;
 
-procedure TFormMain.TrackBar_TilesizeTracking(Sender: TObject);
+procedure TFormMain.TrackBar_TileSizeChange(Sender: TObject);
+begin
+  Label_GridCellSize.Text := 'Grid -Cell size (20 - 64) : '+Trunc(FSetCellSize).ToString;
+end;
+
+procedure TFormMain.TrackBar_TileSizeTracking(Sender: TObject);
 begin
   if FLockMapFlag then Exit;
-  FSetCellSize := TrackBar_Tilesize.Value;
+  FSetCellSize := TrackBar_TileSize.Value;
   InitializeGrid(True);
 end;
 
@@ -1830,7 +1876,6 @@ begin
   Exit;
 
   { Reserved ... }
-  FitToScreen;
   CenterMap;
   AdjustMarkersToViewport;
   UpdatePath(True);

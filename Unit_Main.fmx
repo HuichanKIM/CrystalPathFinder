@@ -169,9 +169,9 @@ object FormMain: TFormMain
             'Diagonal (8-Way)'
             'DiagonalEx'
             'Hexagonal')
-          Position.X = 77.000000000000000000
-          Position.Y = 101.000000000000000000
-          Size.Width = 124.000000000000000000
+          Position.X = 20.000000000000000000
+          Position.Y = 40.000000000000000000
+          Size.Width = 181.000000000000000000
           Size.Height = 32.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 1
@@ -179,7 +179,7 @@ object FormMain: TFormMain
         end
         object Label_WeightScale: TLabel
           Position.X = 20.000000000000000000
-          Position.Y = 183.000000000000000000
+          Position.Y = 84.000000000000000000
           Size.Width = 181.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
@@ -192,7 +192,7 @@ object FormMain: TFormMain
           Min = 1.000000000000000000
           Orientation = Horizontal
           Position.X = 20.000000000000000000
-          Position.Y = 208.000000000000000000
+          Position.Y = 110.000000000000000000
           Size.Width = 181.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
@@ -202,36 +202,25 @@ object FormMain: TFormMain
         end
         object CheckBoox_Parallel: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 8.000000000000000000
+          Position.Y = 140.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 32.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 2
           Text = 'Parallel Processing'
         end
-        object CheckBox_FitToScreen: TCheckBox
-          Position.X = 16.000000000000000000
-          Position.Y = 69.000000000000000000
-          Size.Width = 185.000000000000000000
-          Size.Height = 19.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 9
-          Text = 'CheckBox_FitToScreen'
-          OnChange = CheckBox_FitToScreenChange
-        end
         object CheckBox_SmoothLine: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 144.000000000000000000
+          Position.Y = 229.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 8
           Text = 'Draw Path with Smooth Line'
-          OnChange = CheckBox_FitToScreenChange
         end
         object CheckBox_Analysis: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 281.000000000000000000
+          Position.Y = 261.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
@@ -240,49 +229,49 @@ object FormMain: TFormMain
         end
         object Label_GridCellSize: TLabel
           Position.X = 16.000000000000000000
-          Position.Y = 348.000000000000000000
-          Size.Width = 181.000000000000000000
+          Position.Y = 330.000000000000000000
+          Size.Width = 177.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = 'Grid -Cell size  (20 - 64)'
-          TabOrder = 10
+          TabOrder = 9
         end
-        object TrackBar_Tilesize: TTrackBar
+        object TrackBar_TileSize: TTrackBar
           CanParentFocus = True
           Max = 64.000000000000000000
           Min = 20.000000000000000000
           Orientation = Horizontal
           Position.X = 16.000000000000000000
-          Position.Y = 378.000000000000000000
-          Size.Width = 181.000000000000000000
+          Position.Y = 355.000000000000000000
+          Size.Width = 177.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 12
+          TabOrder = 11
           Value = 20.000000000000000000
-          OnTracking = TrackBar_TilesizeTracking
+          OnChange = TrackBar_TileSizeChange
+          OnTracking = TrackBar_TileSizeTracking
         end
         object Label2: TLabel
-          Position.X = 37.000000000000000000
-          Position.Y = 108.000000000000000000
-          Size.Width = 31.000000000000000000
+          Position.X = 17.000000000000000000
+          Position.Y = 14.000000000000000000
+          Size.Width = 79.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
-          TextSettings.HorzAlign = Trailing
-          Text = 'Kind'
-          TabOrder = 13
+          Text = '* Map Kind *'
+          TabOrder = 12
         end
         object Label3: TLabel
           Position.X = 20.000000000000000000
-          Position.Y = 39.000000000000000000
+          Position.Y = 205.000000000000000000
           Size.Width = 181.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = '------------------------------------'
-          TabOrder = 14
+          TabOrder = 13
         end
         object CheckBox_Calcurate: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 314.000000000000000000
+          Position.Y = 176.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
@@ -291,27 +280,37 @@ object FormMain: TFormMain
         end
         object CheckBox_CellWeight: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 247.000000000000000000
+          Position.Y = 294.000000000000000000
           Size.Width = 88.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 15
-          Text = 'Cell Weight -'
+          TabOrder = 14
+          Text = 'Edit Weight -'
         end
         object TrackBar_CellWeight: TTrackBar
           CanParentFocus = True
           Max = 255.000000000000000000
           Orientation = Horizontal
           Position.X = 111.000000000000000000
-          Position.Y = 246.000000000000000000
+          Position.Y = 292.000000000000000000
           Size.Width = 90.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 11
+          TabOrder = 10
           Value = 100.000000000000000000
           ParentShowHint = False
           ShowHint = True
           OnChange = TrackBar_CellWeightChange
+        end
+        object Button_DefaultParams: TButton
+          Position.X = 144.000000000000000000
+          Position.Y = 416.000000000000000000
+          Size.Width = 61.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 15
+          Text = 'Default'
+          OnClick = Button_DefaultParamsClick
         end
       end
     end
@@ -34759,8 +34758,8 @@ object FormMain: TFormMain
   end
   object ActionList1: TActionList
     OnUpdate = ActionList1Update
-    Left = 304
-    Top = 316
+    Left = 416
+    Top = 236
     object Action_Screenshot: TAction
       Text = 'Action_Screenshot'
       ShortCut = 16467
