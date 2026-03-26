@@ -31,6 +31,10 @@
 
 ![./Images/snapshot_1](./Images/snapshot_1.png)
 
+* Hexagonal Tile Kind Drawing
+
+![./Images/snapshot_2](./Images/snapshot_2.png)
+
 ## 🛠 Tech Stack
 
 *   **Language:** Delphi (Object Pascal)
