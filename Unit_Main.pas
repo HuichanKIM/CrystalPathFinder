@@ -60,6 +60,7 @@ type
     CheckBox_CellWeight: TCheckBox;
     CheckBox_SmoothLine: TCheckBox;
     CheckBox_Analysis: TCheckBox;
+    CheckBox_ShowGrid: TCheckBox;
     TrackBar_Weight: TTrackBar;
     TrackBar_TileSize: TTrackBar;
     TrackBar_CellWeight: TTrackBar;
@@ -83,6 +84,7 @@ type
     Label_GridCellSize: TLabel;
     Label2: TLabel;
     Label3: TLabel;
+
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -96,6 +98,7 @@ type
     procedure TrackBar_WeightTracking(Sender: TObject);
     procedure TrackBar_TileSizeTracking(Sender: TObject);
     procedure TrackBar_CellWeightChange(Sender: TObject);
+    procedure TrackBar_TileSizeChange(Sender: TObject);
     procedure Button_HeighlightMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Button_HeighlightMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Action_ScreenshotExecute(Sender: TObject);
@@ -105,7 +108,6 @@ type
     procedure Action_ResetMapExecute(Sender: TObject);
     procedure Label_TitleClick(Sender: TObject);
     procedure Button_DefaultParamsClick(Sender: TObject);
-    procedure TrackBar_TileSizeChange(Sender: TObject);
   private
     FTileMap: TTileMap;
     FCurrentPath: TTileMapPath;
@@ -229,6 +231,7 @@ begin
   CheckBox_Calcurate.IsChecked := True;
   Label_Performance.Visible :=    False;
   CheckBoox_Parallel.IsChecked := True;
+  CheckBox_ShowGrid.IsChecked :=  True;
 
   with ComboBox_Kind do
   begin
@@ -277,6 +280,7 @@ begin
     CheckBoox_Parallel.IsChecked   := ReadBool   ('UIOptions',   'Parallelfor',  True);
     CheckBox_CellWeight.IsChecked  := ReadBool   ('UIOptions',   'Cellweight',   False);
     CheckBox_SmoothLine.IsChecked  := ReadBool   ('UIOptions',   'Soothline',    False);
+    CheckBox_ShowGrid.IsChecked    := ReadBool   ('UIOptions',   'ShowGrid',     True);
 
     TrackBar_Weight.Value          := ReadFloat  ('MapParams',   'SetWeight',    5.0);
     TrackBar_TileSize.Value        := ReadFloat  ('MapParams',   'Tilesize',     C_CellSizeDefault);
@@ -299,7 +303,7 @@ begin
     WriteBool   ('UIOptions',    'Parallelfor',   CheckBoox_Parallel.IsChecked);
     WriteBool   ('UIOptions',    'Cellweight',    CheckBox_CellWeight.IsChecked);
     WriteBool   ('UIOptions',    'Soothline',     CheckBox_SmoothLine.IsChecked);
-
+    WriteBool   ('UIOptions',    'ShowGrid',      CheckBox_ShowGrid.IsChecked);
     WriteFloat  ('MapParams',    'SetWeight',     TrackBar_Weight.Value);
     WriteFloat  ('MapParams',    'Tilesize',      TrackBar_TileSize.Value);
     WriteFloat  ('MapParams',    'CellWeight',    TrackBar_CellWeight.Value);
@@ -329,7 +333,7 @@ begin
   with MultiView_Options do
   begin
     Mode := TMultiViewMode.Popover;
-    PopoverOptions.PopupHeight := 480;
+    PopoverOptions.PopupHeight := 500;
     MasterButton := Button_Options;
     TargetControl := nil;
 
@@ -490,7 +494,7 @@ begin
 
   FViewOffset.X := (PaintBox_Map.Width  - _MapWidth) / 2;
   FViewOffset.Y := (PaintBox_Map.Height - _MapHeight) / 2;
-  if AInitFlag then
+  if not AInitFlag then
     ConstrainViewOffset;
 end;
 
@@ -1409,7 +1413,8 @@ begin
       if FIsHighlightMode or CheckBox_Analysis.IsChecked then
         DrawTilesEx(Canvas);
 
-      DrawGridEx(Canvas);
+      if CheckBox_ShowGrid.IsChecked then
+        DrawGridEx(Canvas);
 
       if IsPathValid then
         DrawSmoothPath(Canvas, CheckBox_SmoothLine.IsChecked);
@@ -1676,6 +1681,7 @@ begin
   CheckBoox_Parallel.IsChecked   := True;
   CheckBox_CellWeight.IsChecked  := False;
   CheckBox_SmoothLine.IsChecked  := False;
+  CheckBox_ShowGrid.IsChecked    := True;
 
   TrackBar_Weight.Value          := 5.0;
   TrackBar_TileSize.Value        := C_CellSizeDefault;

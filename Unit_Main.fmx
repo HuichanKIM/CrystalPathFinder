@@ -215,7 +215,7 @@ object FormMain: TFormMain
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 8
+          TabOrder = 9
           Text = 'Draw Path with Smooth Line'
         end
         object CheckBox_Analysis: TCheckBox
@@ -224,7 +224,7 @@ object FormMain: TFormMain
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 7
+          TabOrder = 8
           Text = 'Show Weights [ Ctrl + A ]'
         end
         object Label_GridCellSize: TLabel
@@ -234,7 +234,7 @@ object FormMain: TFormMain
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = 'Grid -Cell size  (20 - 64)'
-          TabOrder = 9
+          TabOrder = 10
         end
         object TrackBar_TileSize: TTrackBar
           CanParentFocus = True
@@ -246,7 +246,7 @@ object FormMain: TFormMain
           Size.Width = 177.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 11
+          TabOrder = 12
           Value = 20.000000000000000000
           OnChange = TrackBar_TileSizeChange
           OnTracking = TrackBar_TileSizeTracking
@@ -258,7 +258,7 @@ object FormMain: TFormMain
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = '* Map Kind *'
-          TabOrder = 12
+          TabOrder = 13
         end
         object Label3: TLabel
           Position.X = 20.000000000000000000
@@ -267,7 +267,7 @@ object FormMain: TFormMain
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = '------------------------------------'
-          TabOrder = 13
+          TabOrder = 14
         end
         object CheckBox_Calcurate: TCheckBox
           Position.X = 16.000000000000000000
@@ -284,7 +284,7 @@ object FormMain: TFormMain
           Size.Width = 88.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 14
+          TabOrder = 15
           Text = 'Edit Weight -'
         end
         object TrackBar_CellWeight: TTrackBar
@@ -296,7 +296,7 @@ object FormMain: TFormMain
           Size.Width = 90.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 10
+          TabOrder = 11
           Value = 100.000000000000000000
           ParentShowHint = False
           ShowHint = True
@@ -304,13 +304,22 @@ object FormMain: TFormMain
         end
         object Button_DefaultParams: TButton
           Position.X = 144.000000000000000000
-          Position.Y = 416.000000000000000000
+          Position.Y = 432.000000000000000000
           Size.Width = 61.000000000000000000
-          Size.Height = 22.000000000000000000
+          Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 15
+          TabOrder = 16
           Text = 'Default'
           OnClick = Button_DefaultParamsClick
+        end
+        object CheckBox_ShowGrid: TCheckBox
+          Position.X = 16.000000000000000000
+          Position.Y = 395.000000000000000000
+          Size.Width = 185.000000000000000000
+          Size.Height = 19.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 7
+          Text = 'Show Grid'
         end
       end
     end
