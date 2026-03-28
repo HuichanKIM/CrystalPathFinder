@@ -2,7 +2,14 @@
 
 { ============================================================================ }
 {  Crystal Path Finding — High Performance Edition                             }
-{  Delphi 12 Athens / Delphi 13 Florence                                       }
+{  Delphi 13 Florence                                                          }
+{                                                                              }
+{  Features:                                                                   }
+{   • A* algorithm with Binary Heap priority queue                             }
+{   • Generation-based visited array (eliminates O(N) reset loop)              }
+{   • Thread-safe Parallel pathfinding                                         }
+{   • Supports Square, Diagonal, DiagonalEx, and Hexagonal maps                }
+{   • Weighted terrain cost support                                            }
 {                                                                              }
 {  Inspired by https://github.com/d-mozulyov/CrystalPathFinding                }
 { ============================================================================ }
@@ -22,7 +29,6 @@ uses
   System.Math,
   System.SyncObjs,
   System.Threading,
-  System.Generics.Defaults,
   System.Generics.Collections;
 
 type
@@ -38,26 +44,27 @@ type
   PTileMapWeights  = ^TTileMapWeights;
 
   { ------------------------------------------------------------------ }
-  { TTileMapPath                                                       }
+  { TTileMapPath - Result of a pathfinding operation                     }
   { ------------------------------------------------------------------ }
   TTileMapPath = record
     Points:   PPointArray;
     Count:    NativeInt;
     Distance: Double;
-    { Primary name is now Release; Free is a back-compat alias }
+
     procedure Release;
-    procedure Free; inline;                                                     // back-compat — calls Release
+    procedure Free; inline;           // Back-compatibility
     procedure Assign(const APoints: array of TPoint; ADistance: Double);
   end;
 
-  PPathNode  = ^TPathNode;
+  PPathNode = ^TPathNode;
   PPPathNode = ^PPathNode;
 
   TPathNode = record
     Pos:    TPoint;
-    G, H:   Single;                                                             // Single is sufficient; halves node size
-    F:      Single;
+    G, H:   Single;                   // G = cost from start, H = heuristic
+    F:      Single;                   // F = G + H
     Parent: PPathNode;
+    VisitedID: Integer;
   end;
 
   TTileMapParams = record
@@ -68,7 +75,7 @@ type
   end;
 
   { ------------------------------------------------------------------ }
-  { TBinaryHeap — min-heap priority queue, O(log N) push/pop           }
+  { TBinaryHeap - Min-Heap priority queue                                }
   { ------------------------------------------------------------------ }
   TBinaryHeap = record
   private
@@ -88,60 +95,58 @@ type
   end;
 
   { ------------------------------------------------------------------ }
-  { TTileMap                                                           }
+  { TTileMap - Main pathfinding class                                    }
   { ------------------------------------------------------------------ }
   TTileMap = class
   private
     FWidth:        Integer;
     FHeight:       Integer;
     FKind:         TTileMapKind;
-    FData:         PByte;
+    FData:         PByte;                     // 0 = walkable, 1 = wall
     FDataLock:     TCriticalSection;
 
-    { Reusable Visited pool — grows but never shrinks.                  }
-    { Stores best-known G cost per cell (MaxSingle = unvisited).        }
-    FVisitedPool:     TArray<Single>;
-    FVisitedPoolSize: Integer;
-    FPoolLock:        TCriticalSection;                                         // guards FVisitedPool resize
+    FGlobalNodePool: TArray<TPathNode>; // 프로그램 시작 시 맵 크기만큼 딱 한 번 할당
+    FSearchID: Integer; // 탐색할 때마다 1씩 증가
 
+    { Generation-based visited system for O(1) reset and thread safety }
+    FGeneration:   UInt64;
+    FVisitedG:     TArray<Single>;            // Best known G cost
+    FVisitedGen:   TArray<UInt32>;            // Generation stamp
+    FVisitedPoolSize: Integer;
+    FPoolLock:     TCriticalSection;
+
+    FMapSize: Integer;                        // for Debug ...
+    FMaxNodes: Integer;                       // for Debug ...
+    FPoolCount: Integer;                      // for Debug ...
     procedure SetWidth(const Value: Integer);
     procedure SetHeight(const Value: Integer);
     function  GetDataSize: NativeUInt; inline;
 
-    { Full heuristic per map kind }
-    function  GetHeuristic(const AP1, AP2: TPoint): Single; inline;
-    function  IsValid(const AP: TPoint): Boolean; inline;
-
-    { Exclude check now done via a flat Boolean bitmap }
-    procedure BuildExcludeBitmap(const AExcludes: TArray<TPoint>; out ABitmap: TArray<Boolean>; AMapSize: Integer);
-
-    { Local snapshot taken under FDataLock before search begins }
+    function IsValid(const AP: TPoint): Boolean; inline;
+    procedure BuildExcludeBitmap(const AExcludes: TArray<TPoint>; out ABitmap: TArray<Boolean>; AWidth, AHeight, AMapSize: Integer);
     procedure SnapshotMapState(out AData: PByte; out AWidth, AHeight: Integer);
-
-    { Acquire a slice of FVisitedPool, growing if necessary }
-    procedure AcquireVisitedSlice(ASize: Integer; out ASlice: PSingle);
-
+    procedure AcquireVisitedSlice(ASize: Integer; out AGSlice: PSingle; out AGGenSlice: PUInt32; out AGen: UInt32);
+    function GetOptimalPoolSize(const AMapSize: Integer): Integer;
   protected
     function DoFindPath(const AParams: TTileMapParams): TTileMapPath; virtual;
-
   public
     constructor Create(AWidth, AHeight: Integer; AKind: TTileMapKind = TTileMapKind.mkSimple);
     destructor  Destroy; override;
 
-    function FindPath(const AStart, AFinish: TPoint;
-                      const AWeights:  PTileMapWeights = nil;
-                      const AExcludes: TArray<TPoint>  = nil): TTileMapPath;
-
-    function FindPathParallel(const AStarts:   array of TPoint;
-                              const AFinish:   TPoint;
-                              const AWeights:  PTileMapWeights = nil;
-                              const AExcludes: TArray<TPoint>  = nil
-                              ): TTileMapPath;
+    function  GetHeuristic(const AP1, AP2: TPoint): Single; inline;
+    function FindPath(const AStart, AFinish: TPoint; const AWeights: PTileMapWeights = nil; const AExcludes: TArray<TPoint> = nil): TTileMapPath;
+    function FindPathParallel(const AStarts: array of TPoint; const AFinish: TPoint; const AWeights: PTileMapWeights = nil; const AExcludes: TArray<TPoint> = nil): TTileMapPath;
+    { Placeholder for Weighted Jump Point Search (see CrystalWeightedJPS.pas) }
+    function FindPathJPS(const AStart, AFinish: TPoint; const AWeights: PTileMapWeights = nil; const AExcludes: TArray<TPoint> = nil): TTileMapPath;
 
     property Width:  Integer        read FWidth    write SetWidth;
     property Height: Integer        read FHeight   write SetHeight;
     property Kind:   TTileMapKind   read FKind     write FKind;
     property Data:   PByte          read FData;
+    // for Debug
+    property MapSize:  Integer      read FMapSize;
+    property MaxNodes: Integer      read FMaxNodes;
+    property PoolCount: Integer     read FPoolCount;
   end;
 
 implementation
@@ -152,13 +157,16 @@ implementation
 
 procedure TTileMapPath.Release;
 begin
-  if Points <> nil then FreeMem(Points);
-  Points   := nil;
-  Count    := 0;
+  if Points <> nil then
+  begin
+    FreeMem(Points);
+    Points := nil;
+  end;
+  Count := 0;
   Distance := 0;
 end;
 
-procedure TTileMapPath.Free;                                                    // back-compat alias
+procedure TTileMapPath.Free; // inline;
 begin
   Release;
 end;
@@ -196,9 +204,10 @@ end;
 
 procedure TBinaryHeap.Grow;
 begin
-  { Double capacity instead of silently dropping the node }
-  FCapacity := FCapacity * 2;
-  ReallocMem(FData, SizeOf(PPathNode) * FCapacity);
+  { Conservative growth: 1.5x instead of 2x to reduce memory overhead }
+  var NewCapacity := FCapacity + (FCapacity shr 1);
+  ReallocMem(FData, SizeOf(PPathNode) * NewCapacity);
+  FCapacity := NewCapacity;
 end;
 
 function TBinaryHeap.IsEmpty: Boolean;
@@ -208,7 +217,7 @@ end;
 
 procedure TBinaryHeap.Push(Node: PPathNode);
 begin
-  if FCount >= FCapacity then Grow;                                             // grow, never drop
+  if FCount >= FCapacity then Grow;
   FData[FCount] := Node;
   SiftUp(FCount);
   Inc(FCount);
@@ -229,72 +238,83 @@ end;
 procedure TBinaryHeap.SiftUp(Index: Integer);
 var
   ParentIdx: Integer;
-  Temp:      PPathNode;
+  Temp: PPathNode;
+  CurrentNode: PPathNode;
 begin
+  CurrentNode := FData[Index];
   while Index > 0 do
   begin
-    ParentIdx := (Index - 1) shr 1;                                             // div 2 via shift — marginally faster
-    if FData[Index]^.F >= FData[ParentIdx]^.F then Break;
-    Temp                  := FData[Index];
-    FData[Index]          := FData[ParentIdx];
-    FData[ParentIdx]      := Temp;
-    Index                 := ParentIdx;
+    ParentIdx := (Index - 1) shr 1;
+    if CurrentNode^.F >= FData[ParentIdx]^.F then Break;
+
+    FData[Index] := FData[ParentIdx];
+    Index := ParentIdx;
   end;
+  FData[Index] := CurrentNode;
 end;
 
 procedure TBinaryHeap.SiftDown(Index: Integer);
 var
   ChildIdx: Integer;
-  Temp:     PPathNode;
+  Temp: PPathNode;
+  CurrentNode: PPathNode;
 begin
+  CurrentNode := FData[Index];
   while True do
   begin
-    ChildIdx := (Index shl 1) + 1;                                              // left child
+    ChildIdx := (Index shl 1) + 1;
     if ChildIdx >= FCount then Break;
-    if (ChildIdx + 1 < FCount) and
-       (FData[ChildIdx + 1]^.F < FData[ChildIdx]^.F) then
-      Inc(ChildIdx);                                                            // right child is smaller
-    if FData[Index]^.F <= FData[ChildIdx]^.F then Break;
-    Temp             := FData[Index];
-    FData[Index]     := FData[ChildIdx];
-    FData[ChildIdx]  := Temp;
-    Index            := ChildIdx;
+
+    if (ChildIdx + 1 < FCount) and (FData[ChildIdx + 1]^.F < FData[ChildIdx]^.F) then
+      Inc(ChildIdx);
+
+    if CurrentNode^.F <= FData[ChildIdx]^.F then Break;
+
+    FData[Index] := FData[ChildIdx];
+    Index := ChildIdx;
   end;
+  FData[Index] := CurrentNode;
 end;
 
 { ============================================================================ }
-{ TTileMap — construction / destruction                                        }
+{ TTileMap                                                                     }
 { ============================================================================ }
 
 constructor TTileMap.Create(AWidth, AHeight: Integer; AKind: TTileMapKind);
 begin
   inherited Create;
 
-  FWidth    := AWidth;
-  FHeight   := AHeight;
-  FKind     := AKind;
+  FWidth  := AWidth;
+  FHeight := AHeight;
+  FKind   := AKind;
+
   FDataLock := TCriticalSection.Create;
   FPoolLock := TCriticalSection.Create;
 
   GetMem(FData, GetDataSize);
   FillChar(FData^, GetDataSize, 0);
 
-  { Pre-allocate visited pool at map size }
+  var _mapsize := GetOptimalPoolSize(AWidth * AHeight);
+
+  SetLength(FGlobalNodePool, _mapsize);
+  for var _i := 0 to High(FGlobalNodePool) do
+     FGlobalNodePool[_i].G := MaxSingle;
+  FSearchID := 0;
+
   FVisitedPoolSize := AWidth * AHeight;
-  SetLength(FVisitedPool, FVisitedPoolSize);
+  SetLength(FVisitedG,   FVisitedPoolSize);
+  SetLength(FVisitedGen, FVisitedPoolSize);
+  FGeneration := 0;
 end;
 
 destructor TTileMap.Destroy;
 begin
   if FData <> nil then FreeMem(FData);
+  SetLength(FGlobalNodePool, 0);
   FDataLock.Free;
   FPoolLock.Free;
   inherited;
 end;
-
-{ ============================================================================ }
-{ TTileMap — private helpers                                                   }
-{ ============================================================================ }
 
 function TTileMap.GetDataSize: NativeUInt;
 begin
@@ -303,30 +323,45 @@ end;
 
 function TTileMap.IsValid(const AP: TPoint): Boolean;
 begin
-  Result := (AP.X >= 0) and (AP.X < FWidth) and
-            (AP.Y >= 0) and (AP.Y < FHeight);
+  Result := (AP.X >= 0) and (AP.X < FWidth) and (AP.Y >= 0) and (AP.Y < FHeight);
+end;
+
+{ Calculate optimal initial pool size based on map dimensions }
+function TTileMap.GetOptimalPoolSize(const AMapSize: Integer): Integer;
+begin
+  {
+    Adaptive sizing strategy:
+    - Small maps (< 10K cells): Use fixed 1024 nodes (sufficient for most cases)
+    - Medium maps (10K-100K): Use 10% of map size
+    - Large maps (100K-1M): Use 5% of map size
+    - Very large maps (> 1M): Use fixed 65536 nodes (reasonable upper limit)
+
+    This avoids excessive allocation while remaining safe for worst-case scenarios.
+  }
+
+  Result := AMapSize * 2;
+  Exit;
+
+  { Reserved ... }
+  if AMapSize < 10000   then Result := AMapSize div 2 else
+  if AMapSize < 100000  then Result := AMapSize div 5 else
+  if AMapSize < 1000000 then Result := AMapSize div 10 else
+  Result := AMapSize;//65536;
 end;
 
 function TTileMap.GetHeuristic(const AP1, AP2: TPoint): Single;
 begin
   var _DX := Abs(AP1.X - AP2.X);
   var _DY := Abs(AP1.Y - AP2.Y);
+
   case FKind of
-
     TTileMapKind.mkSimple:
-      { Manhattan distance — admissible for 4-directional grids }
-      Result := _DX + _DY;
+      Result := _DX + _DY;                                            // Manhattan
 
-    TTileMapKind.mkDiagonal,
-    TTileMapKind.mkDiagonalEx:
-      { Chebyshev / Octile distance — admissible for 8-directional grids  }
-      { = max(_DX,_DY) + (sqrt(2)-1)*min(_DX,_DY) ≈ max + 0.4142*min      }
-      Result := Max(_DX, _DY) + 0.4142 * Min(_DX, _DY);
+    TTileMapKind.mkDiagonal, TTileMapKind.mkDiagonalEx:
+      Result := Max(_DX, _DY) + 0.4142 * Min(_DX, _DY);               // Octile
 
     TTileMapKind.mkHexagonal:
-      { Offset-coordinate hex grid distance                               }
-      { For even-row offset (most common Google-map style):               }
-      {   convert offset → cube coords, then use cube distance.           }
       begin
         var CubeX1 := AP1.X - (AP1.Y - (AP1.Y and 1)) div 2;
         var CubeZ1 := AP1.Y;
@@ -334,42 +369,32 @@ begin
         var CubeX2 := AP2.X - (AP2.Y - (AP2.Y and 1)) div 2;
         var CubeZ2 := AP2.Y;
         var CubeY2 := -CubeX2 - CubeZ2;
-        Result := (Abs(CubeX1 - CubeX2) +
-                   Abs(CubeY1 - CubeY2) +
-                   Abs(CubeZ1 - CubeZ2)) / 2.0;
+        Result := (Abs(CubeX1 - CubeX2) + Abs(CubeY1 - CubeY2) + Abs(CubeZ1 - CubeZ2)) / 2.0;
       end;
-
   else
     Result := Sqrt(_DX * _DX + _DY * _DY);
   end;
 end;
 
-{ Build a flat Boolean bitmap for O(1) exclude lookup.                       }
-{ ABitmap[Y*AWidth+X] = True means the cell is excluded.                     }
-{ Returns immediately (zero-length bitmap) when AExcludes is empty.          }
-procedure TTileMap.BuildExcludeBitmap(const AExcludes: TArray<TPoint>;
-                                      out ABitmap: TArray<Boolean>;
-                                      AMapSize: Integer);
+procedure TTileMap.BuildExcludeBitmap(const AExcludes: TArray<TPoint>; out ABitmap: TArray<Boolean>; AWidth, AHeight, AMapSize: Integer);
 begin
   if Length(AExcludes) = 0 then
   begin
     ABitmap := nil;
     Exit;
   end;
+
   SetLength(ABitmap, AMapSize);
   FillChar(ABitmap[0], AMapSize * SizeOf(Boolean), 0);
-  var _Idx: Integer := 0;
+
   for var _i := 0 to High(AExcludes) do
   begin
-    if not IsValid(AExcludes[_i]) then Continue;
-    _Idx := AExcludes[_i].Y * FWidth + AExcludes[_i].X;
-    ABitmap[_Idx] := True;
+    var P := AExcludes[_i];
+    if (P.X >= 0) and (P.X < AWidth) and (P.Y >= 0) and (P.Y < AHeight) then
+      ABitmap[P.Y * AWidth + P.X] := True;
   end;
 end;
 
-{ Capture a consistent snapshot of FData/FWidth/FHeight under lock.           }
-{ DoFindPath works exclusively with these local copies so that a concurrent   }
-{ SetWidth/SetHeight call cannot corrupt the search mid-flight.               }
 procedure TTileMap.SnapshotMapState(out AData: PByte; out AWidth, AHeight: Integer);
 begin
   FDataLock.Enter;
@@ -382,27 +407,27 @@ begin
   end;
 end;
 
-{ Hand out a pointer into the shared visited pool.                            }
-{ The pool grows (but never shrinks) to cover the largest map seen so far.    }
-{ Each DoFindPath call re-fills its slice with MaxSingle before use.          }
-procedure TTileMap.AcquireVisitedSlice(ASize: Integer; out ASlice: PSingle);
+procedure TTileMap.AcquireVisitedSlice(ASize: Integer;
+                                       out AGSlice: PSingle;
+                                       out AGGenSlice: PUInt32;
+                                       out AGen: UInt32);
 begin
   FPoolLock.Enter;
   try
     if ASize > FVisitedPoolSize then
     begin
       FVisitedPoolSize := ASize;
-      SetLength(FVisitedPool, FVisitedPoolSize);
+      SetLength(FVisitedG,   ASize);
+      SetLength(FVisitedGen, ASize);
     end;
-    ASlice := @FVisitedPool[0];
+
+    AGen := TInterlocked.Increment(FGeneration) and $FFFFFFFF;
+    AGSlice    := @FVisitedG[0];
+    AGGenSlice := @FVisitedGen[0];
   finally
     FPoolLock.Leave;
   end;
 end;
-
-{ ============================================================================ }
-{ TTileMap — property setters                                                  }
-{ ============================================================================ }
 
 procedure TTileMap.SetWidth(const Value: Integer);
 begin
@@ -435,12 +460,12 @@ begin
 end;
 
 { ============================================================================ }
-{ TTileMap — FindPath / FindPathParallel                                       }
+{ Public Interface                                                             }
 { ============================================================================ }
 
 function TTileMap.FindPath(const AStart, AFinish: TPoint;
-                           const AWeights:  PTileMapWeights;
-                           const AExcludes: TArray<TPoint>): TTileMapPath;
+                           const AWeights: PTileMapWeights = nil;
+                           const AExcludes: TArray<TPoint> = nil): TTileMapPath;
 var
   LParams: TTileMapParams;
 begin
@@ -451,212 +476,227 @@ begin
   Result := DoFindPath(LParams);
 end;
 
-function TTileMap.FindPathParallel(const AStarts:   array of TPoint;
-                                   const AFinish:   TPoint;
-                                   const AWeights:  PTileMapWeights;
-                                   const AExcludes: TArray<TPoint>
-                                   ): TTileMapPath;
+function TTileMap.FindPathParallel(const AStarts: array of TPoint;
+                                   const AFinish: TPoint;
+                                   const AWeights: PTileMapWeights = nil;
+                                   const AExcludes: TArray<TPoint> = nil): TTileMapPath;
 begin
   if Length(AStarts) = 0 then Exit(Default(TTileMapPath));
 
-  { Copy open array to a managed TArray for parallel capture }
   var _StartsCopy: TArray<TPoint>;
   SetLength(_StartsCopy, Length(AStarts));
-  for var _i := 0 to High(AStarts) do
-    _StartsCopy[_i] := AStarts[_i];
+  for var _j := 0 to High(AStarts) do
+    _StartsCopy[_j] := AStarts[_j];
 
   var _Paths: TArray<TTileMapPath>;
   SetLength(_Paths, Length(_StartsCopy));
-
-  { Zero-initialise the result array BEFORE launching threads.          }
-  { If TParallel.For raises internally, any untouched slots will have   }
-  { Points=nil, so the cleanup loop below is safe.                      }
   FillChar(_Paths[0], Length(_Paths) * SizeOf(TTileMapPath), 0);
 
-  TParallel.For(0, High(_StartsCopy),
-    procedure(Index: Integer)
-    var
-      ThreadParams: TTileMapParams;
-    begin
-      ThreadParams.Starts   := [_StartsCopy[Index]];
-      ThreadParams.Finish   := AFinish;
-      ThreadParams.Weights  := AWeights;
-      ThreadParams.Excludes := AExcludes;
-      _Paths[Index] := DoFindPath(ThreadParams);
-    end);
+  var _BestFound := False;
+  var _BestLock := TCriticalSection.Create;
+  try
+    TParallel.For(0, High(_StartsCopy),
+      procedure(Index: Integer)
+      var
+        _Params: TTileMapParams;
+      begin
+        { Early exit if best path already found by another thread }
+        _BestLock.Enter;
+        try
+          if _BestFound then Exit;
+        finally
+          _BestLock.Leave;
+        end;
+
+        _Params.Starts   := [_StartsCopy[Index]];
+        _Params.Finish   := AFinish;
+        _Params.Weights  := AWeights;
+        _Params.Excludes := AExcludes;
+        _Paths[Index] := DoFindPath(_Params);
+
+        { Mark success if path found }
+        if _Paths[Index].Count > 0 then
+        begin
+          _BestLock.Enter;
+          try
+            _BestFound := True;
+          finally
+            _BestLock.Leave;
+          end;
+        end;
+      end);
 
   var _BestIdx := -1;
   var _MinDist := MaxDouble;
-  for var _i := 0 to High(_Paths) do
-    if (_Paths[_i].Count > 0) and (_Paths[_i].Distance < _MinDist) then
+  for var _j := 0 to High(_Paths) do
+    if (_Paths[_j].Count > 0) and (_Paths[_j].Distance < _MinDist) then
     begin
-      _MinDist := _Paths[_i].Distance;
-      _BestIdx := _i;
+      _MinDist := _Paths[_j].Distance;
+      _BestIdx := _j;
     end;
 
   if _BestIdx <> -1 then
-    begin
-      Result := _Paths[_BestIdx];
-      for var _i := 0 to High(_Paths) do
-        if _i <> _BestIdx then _Paths[_i].Release;                              // Release, not Free
-    end
+  begin
+    Result := _Paths[_BestIdx];
+    for var _k := 0 to High(_Paths) do
+      if _k <> _BestIdx then _Paths[_k].Release;
+  end
   else
     Result := Default(TTileMapPath);
+  finally
+    _BestLock.Free;
+  end;
+end;
+
+function TTileMap.FindPathJPS(const AStart, AFinish: TPoint;
+                              const AWeights: PTileMapWeights = nil;
+                              const AExcludes: TArray<TPoint> = nil): TTileMapPath;
+begin
+  { Full Weighted JPS is implemented in CrystalWeightedJPS.pas }
+  Result := FindPath(AStart, AFinish, AWeights, AExcludes);
 end;
 
 { ============================================================================ }
-{ TTileMap — DoFindPath (A* core)                                              }
+{ DoFindPath - Core A* Algorithm                                               }
 { ============================================================================ }
 
 function TTileMap.DoFindPath(const AParams: TTileMapParams): TTileMapPath;
 var
-  { Local snapshot — immune to concurrent SetWidth/SetHeight }
-  _SnapData:          PByte;
-  _SnapWidth, SnapH:  Integer;
-  _Heap:         TBinaryHeap;
-  { Directions split into _Orthogonal + _Diagonal for mkDiagonalEx }
+  _SnapData:   PByte;
+  _SnapWidth:  Integer;
+  _SnapHeight: Integer;
+
+  _VisitedG:   PSingle;
+  _VisitedGen: PUInt32;
+  _MyGen:      UInt32;
+
+  _Heap:       TBinaryHeap;
+
   _Orthogonal: array[0..3] of TPoint;
   _Diagonal:   array[0..3] of TPoint;
 
-  { Helper: checks that a _Diagonal move does not cut a corner }
-  function DiagonalClear(const AOrthoA, AOrthoB: TPoint): Boolean;              // compile error ? inline;
+  function DiagonalClear(const AOrthoA, AOrthoB: TPoint;
+                         const ASnapWidth: Integer;
+                         const ASnapData: PByte): Boolean; inline;
   var
     _IdxA, _IdxB: Integer;
   begin
-    _IdxA := AOrthoA.Y * _SnapWidth + AOrthoA.X;
-    _IdxB := AOrthoB.Y * _SnapWidth + AOrthoB.X;
-    Result := ((_SnapData + _IdxA)^ = 0) and ((_SnapData + _IdxB)^ = 0);
+    _IdxA := AOrthoA.Y * ASnapWidth + AOrthoA.X;
+    _IdxB := AOrthoB.Y * ASnapWidth + AOrthoB.X;
+    Result := ((ASnapData + _IdxA)^ = 0) and ((ASnapData + _IdxB)^ = 0);
   end;
 
 begin
   Result := Default(TTileMapPath);
 
-  { --- Capture a consistent map snapshot  --- }
-  SnapshotMapState(_SnapData, _SnapWidth, SnapH);
-  var _MapSize := _SnapWidth * SnapH;
+  SnapshotMapState(_SnapData, _SnapWidth, _SnapHeight);
+  var _MapSize := _SnapWidth * _SnapHeight;
   if _MapSize = 0 then Exit;
 
-  { --- Build exclude bitmap --- }
-  { Exclude bitmap — O(1) lookup }
   var _ExcludeBitmap: TArray<Boolean>;
-  BuildExcludeBitmap(AParams.Excludes, _ExcludeBitmap, _MapSize);
+  BuildExcludeBitmap(AParams.Excludes, _ExcludeBitmap, _SnapWidth, _SnapHeight, _MapSize);
   var _HasExcludes := Length(_ExcludeBitmap) > 0;
-  { Pointer into the shared _Visited pool (re-filled each call) }
-  var _Visited: PSingle;
-  { --- Acquire _Visited slice --- }
-  AcquireVisitedSlice(_MapSize, _Visited);
-  { Fill with MaxSingle (= unvisited) — FillChar trick for Single }
-  for var _i := 0 to _MapSize - 1 do
-    _Visited[_i] := MaxSingle;
 
-  { --- Node pool : starts at _MapSize, grows on demand --- }
-  var _MaxNodes := _MapSize;
-  { Node pool — starts at _MapSize, doubles on overflow }
-  var _NodePool: PPathNode;
-  GetMem(_NodePool, SizeOf(TPathNode) * _MaxNodes);
-  var _PoolCount: Integer := 0;
+  AcquireVisitedSlice(_MapSize, _VisitedG, _VisitedGen, _MyGen);
+
+  // Memory Pool size ------------------------------------------------------- //
+  var _MaxNodes := Length(FGlobalNodePool);
+  // ------------------------------------------------------------------------ //
+  var _PoolCount := 0;
 
   _Heap.Initialize(_MaxNodes);
   try
-    { --- Direction tables --- }
-    _Orthogonal[0] := TPoint.Create( 0,  1);
-    _Orthogonal[1] := TPoint.Create( 0, -1);
-    _Orthogonal[2] := TPoint.Create( 1,  0);
-    _Orthogonal[3] := TPoint.Create(-1,  0);
-    _Diagonal[0]   := TPoint.Create( 1,  1);
-    _Diagonal[1]   := TPoint.Create( 1, -1);
-    _Diagonal[2]   := TPoint.Create(-1,  1);
-    _Diagonal[3]   := TPoint.Create(-1, -1);
+    _Orthogonal[0] := TPoint.Create(0, 1);
+    _Orthogonal[1] := TPoint.Create(0, -1);
+    _Orthogonal[2] := TPoint.Create(1, 0);
+    _Orthogonal[3] := TPoint.Create(-1, 0);
 
-    var _DirCount: Integer := 0;
-    case FKind of
-      TTileMapKind.mkSimple,
-      TTileMapKind.mkHexagonal: _DirCount := 4;
-    else
-      _DirCount := 8;                                                           // mkDiagonal, mkDiagonalEx
-    end;
+    _Diagonal[0] := TPoint.Create(1, 1);
+    _Diagonal[1] := TPoint.Create(1, -1);
+    _Diagonal[2] := TPoint.Create(-1, 1);
+    _Diagonal[3] := TPoint.Create(-1, -1);
 
-    var _Current: PPathNode := nil;;
-    var _CellIdx:  Integer := 0;
-    { --- Seed start nodes --- }
+    var _DirCount := IfThen(FKind in [TTileMapKind.mkSimple, TTileMapKind.mkHexagonal], 4, 8);
+    var _IsDiagonalEx := (FKind = TTileMapKind.mkDiagonalEx);
+
+    var _Current: PPathNode := nil;
+    var _CellIdx: Integer := 0;
+
+    { Seed start nodes }
     for var _j := 0 to High(AParams.Starts) do
     begin
       if not IsValid(AParams.Starts[_j]) then Continue;
-      _CellIdx := AParams.Starts[_j].Y * _SnapWidth + AParams.Starts[_j].X;
-      if (_SnapData + _CellIdx)^ = 1     then Continue;                         // start on a wall? skip
 
-      { Grow node pool if needed }
+      _CellIdx := AParams.Starts[_j].Y * _SnapWidth + AParams.Starts[_j].X;
+      if (_SnapData + _CellIdx)^ = 1 then Continue;
+      // Ensuring sufficient memory size -/ emergency use  ------------------ //
       if _PoolCount >= _MaxNodes then
       begin
-        _MaxNodes := _MaxNodes * 2;
-        ReallocMem(_NodePool, SizeOf(TPathNode) * _MaxNodes);
-        _Heap.FCapacity := _MaxNodes;                                           // keep _Heap capacity in sync
-        ReallocMem(_Heap.FData, SizeOf(PPathNode) * _MaxNodes);
-      end;
-
-      _Current         := @_NodePool[_PoolCount]; Inc(_PoolCount);
+        _MaxNodes := Length(FGlobalNodePool) + _MapSize;
+        SetLength(FGlobalNodePool, _MaxNodes);
+        for var _m := High(FGlobalNodePool) downto High(FGlobalNodePool) - (_MapSize-1) do
+           FGlobalNodePool[_m].G := MaxSingle;
+       end;
+      // -------------------------------------------------------------------- //
+      _Current         := @FGlobalNodePool[_PoolCount];
+                          Inc(_PoolCount);
       _Current^.Pos    := AParams.Starts[_j];
       _Current^.G      := 0;
       _Current^.H      := GetHeuristic(_Current^.Pos, AParams.Finish);
       _Current^.F      := _Current^.H;
       _Current^.Parent := nil;
 
+      _VisitedG[_CellIdx]   := 0;
+      _VisitedGen[_CellIdx] := _MyGen;
       _Heap.Push(_Current);
-      _Visited[_CellIdx] := 0;
     end;
 
-    { ================================================================== }
-    { Main A* loop                                                       }
-    { ================================================================== }
-    var _NextPos:  TPoint := Point(0,0);
-    var _StepCost: Single := 0;
-    var _Neighbor: PPathNode := nil;
-    var _NewG:     Single := 0;
-    var _TempPath: TArray<TPoint>;
-    var _Tracer:   PPathNode := nil;
-    var _PathLen:  Integer := 0;
+    { Main A* Loop }
+    var _NextPos: TPoint;
+    var _StepCost: Single;
+    var _Neighbor: PPathNode;
+    var _NewG: Single;
 
     while not _Heap.IsEmpty do
     begin
       _Current := _Heap.Pop;
-
-      { Stale-node guard:                                                }
-      { A node is stale when a shorter path to its cell was found and    }
-      { recorded in _Visited AFTER this node was pushed.  Skip it.       }
       _CellIdx := _Current^.Pos.Y * _SnapWidth + _Current^.Pos.X;
-      if _Current^.G > _Visited[_CellIdx] + 1e-5 then Continue;
 
-      { --- Goal check --- }
+      if (_VisitedGen[_CellIdx] = _MyGen) and (_Current^.G > _VisitedG[_CellIdx] + 1e-5) then
+        Continue;
+
       if _Current^.Pos = AParams.Finish then
       begin
-        { Reconstruct path by walking Parent pointers }
-        _PathLen := 0;
-        _Tracer  := _Current;
+        var _PathLen := 0;
+        var _Tracer := _Current;
         while _Tracer <> nil do
         begin
           Inc(_PathLen);
           _Tracer := _Tracer^.Parent;
         end;
 
+        var _TempPath: TArray<TPoint>;
         SetLength(_TempPath, _PathLen);
+
         _Tracer := _Current;
         for var _i := _PathLen - 1 downto 0 do
         begin
           _TempPath[_i] := _Tracer^.Pos;
-          _Tracer      := _Tracer^.Parent;
+          _Tracer := _Tracer^.Parent;
         end;
+
         Result.Assign(_TempPath, _Current^.G);
         Break;
       end;
 
-      { --- Expand neighbours --- }
-      { _Orthogonal moves (always 4 directions) }
+      { Orthogonal neighbors }
       for var _k := 0 to 3 do
       begin
         _NextPos := _Current^.Pos + _Orthogonal[_k];
-        if not IsValid(_NextPos)                     then Continue;
+        if not IsValid(_NextPos) then Continue;
+
         _CellIdx := _NextPos.Y * _SnapWidth + _NextPos.X;
-        if (_SnapData + _CellIdx)^ = 1               then Continue;
+        if (_SnapData + _CellIdx)^ = 1 then Continue;
         if _HasExcludes and _ExcludeBitmap[_CellIdx] then Continue;
 
         _StepCost := 1.0;
@@ -664,18 +704,24 @@ begin
           _StepCost := _StepCost + AParams.Weights^[_CellIdx] * 0.1;
 
         _NewG := _Current^.G + _StepCost;
-        if _NewG < _Visited[_CellIdx] then
-        begin
-          _Visited[_CellIdx] := _NewG;
 
-          { Grow node pool dynamically if full }
+
+
+        if (_VisitedGen[_CellIdx] <> _MyGen) or (_NewG < _VisitedG[_CellIdx]) then
+        begin
+          _VisitedG[_CellIdx]   := _NewG;
+          _VisitedGen[_CellIdx] := _MyGen;
+          // Ensuring sufficient memory size -/ emergency use  -------------- //
           if _PoolCount >= _MaxNodes then
           begin
-            _MaxNodes := _MaxNodes * 2;
-            ReallocMem(_NodePool, SizeOf(TPathNode) * _MaxNodes);
+            _MaxNodes := Length(FGlobalNodePool) + _MapSize;
+            SetLength(FGlobalNodePool, _MaxNodes);
+            for var _m := High(FGlobalNodePool) downto High(FGlobalNodePool) - (_MapSize-1) do
+              FGlobalNodePool[_m].G := MaxSingle;
           end;
-
-          _Neighbor         := @_NodePool[_PoolCount]; Inc(_PoolCount);
+          // ---------------------------------------------------------------- //
+          _Neighbor         := @FGlobalNodePool[_PoolCount];
+                               Inc(_PoolCount);
           _Neighbor^.Pos    := _NextPos;
           _Neighbor^.G      := _NewG;
           _Neighbor^.H      := GetHeuristic(_NextPos, AParams.Finish);
@@ -686,43 +732,40 @@ begin
         end;
       end;
 
-      { _Diagonal moves (only for mkDiagonal and mkDiagonalEx) }
+      { Process diagonal neighbors (8-directional movement) }
       if _DirCount = 8 then
         for var _m := 0 to 3 do
         begin
           _NextPos := _Current^.Pos + _Diagonal[_m];
-          if not IsValid(_NextPos)                     then Continue;
-          _CellIdx := _NextPos.Y * _SnapWidth + _NextPos.X;
-          if (_SnapData + _CellIdx)^ = 1               then Continue;
-          if _HasExcludes and _ExcludeBitmap[_CellIdx] then Continue;
+          if not IsValid(_NextPos) then Continue;
 
-          { mkDiagonalEx: block _Diagonal if either _Orthogonal           }
-          { neighbour along that _Diagonal is a wall (no corner cutting). }
-          if FKind = TTileMapKind.mkDiagonalEx then
+          _CellIdx := _NextPos.Y * _SnapWidth + _NextPos.X;
+          if (_SnapData + _CellIdx)^ = 1 then Continue;
+          if _HasExcludes and _ExcludeBitmap[_CellIdx] then Continue;
+           { DiagonalEx mode: check corner is not blocked }
+          if _IsDiagonalEx then
           begin
-            var OrthoA := TPoint.Create(_Current^.Pos.X + _Diagonal[_m].X, _Current^.Pos.Y);
-            var OrthoB := TPoint.Create(_Current^.Pos.X, _Current^.Pos.Y + _Diagonal[_m].Y);
-            if not IsValid(OrthoA) or not IsValid(OrthoB) then Continue;
-            if not DiagonalClear(OrthoA, OrthoB)          then Continue;
+            var _OrthoA := TPoint.Create(_Current^.Pos.X + _Diagonal[_m].X, _Current^.Pos.Y);
+            var _OrthoB := TPoint.Create(_Current^.Pos.X, _Current^.Pos.Y + _Diagonal[_m].Y);
+            if not IsValid(_OrthoA) or not IsValid(_OrthoB) then Continue;
+            if not DiagonalClear(_OrthoA, _OrthoB, _SnapWidth, _SnapData) then Continue;
           end;
 
-          { _Diagonal step cost: sqrt(2) ≈ 1.4142 }
-          _StepCost := 1.4142;
+          _StepCost := 1.41421356237;
           if AParams.Weights <> nil then
             _StepCost := _StepCost + AParams.Weights^[_CellIdx] * 0.1;
 
           _NewG := _Current^.G + _StepCost;
-          if _NewG < _Visited[_CellIdx] then
+
+          if (_VisitedGen[_CellIdx] <> _MyGen) or (_NewG < _VisitedG[_CellIdx]) then
           begin
-            _Visited[_CellIdx] := _NewG;
+            _VisitedG[_CellIdx]   := _NewG;
+            _VisitedGen[_CellIdx] := _MyGen;
 
-            if _PoolCount >= _MaxNodes then
-            begin
-              _MaxNodes := _MaxNodes * 2;
-              ReallocMem(_NodePool, SizeOf(TPathNode) * _MaxNodes);
-            end;
+            if _PoolCount >= _MaxNodes then _MaxNodes := Min(_MapSize, _MaxNodes * 2);
 
-            _Neighbor         := @_NodePool[_PoolCount]; Inc(_PoolCount);
+            _Neighbor         := @FGlobalNodePool[_PoolCount];
+                                 Inc(_PoolCount);
             _Neighbor^.Pos    := _NextPos;
             _Neighbor^.G      := _NewG;
             _Neighbor^.H      := GetHeuristic(_NextPos, AParams.Finish);
@@ -732,14 +775,16 @@ begin
             _Heap.Push(_Neighbor);
           end;
         end;
-
-    end; { while not _Heap.IsEmpty }
-
+    end;
+    // for Debug ...
+    FPoolCount := _PoolCount;
   finally
     _Heap.Release;
-    FreeMem(_NodePool);
-    { _Visited slice is NOT freed — it belongs to FVisitedPool. }
   end;
+
+  // for Debug ...
+  FMaxNodes := _MaxNodes;
+  FMapSize  := _MapSize;
 end;
 
 end.

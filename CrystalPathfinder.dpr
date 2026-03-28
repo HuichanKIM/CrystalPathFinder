@@ -8,12 +8,12 @@ program CrystalPathfinder;
 uses
   FastMM4,
   System.StartUpCopy,
+  FMX.Types,
   FMX.Forms,
   uCommons in 'uCommons.pas',
   CrystalPathFinding_ex in 'CrystalPathFinding_ex.pas',
   Unit_Main in 'Unit_Main.pas' {FormMain},
   Unit_Resources in 'Unit_Resources.pas' {Form_Resources};
-
 
 {$R *.res}
 

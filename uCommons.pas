@@ -16,7 +16,7 @@ uses
   Winapi.Messages,
   FMX.Types,
   FMX.Graphics,
-  FMX.Controls,
+  FMX.Controls,  FMX.StdCtrls,    FMX.Memo,
   FMX.Forms;
 
 const
@@ -56,7 +56,7 @@ function Clamp(const Value, Min, Max: Integer): Integer;
 function ClampD(const Value, Min, Max: Single): Single;
 function GetColorFromHSL(AHH, ASS, ALL: Single): TAlphaColor;
 function CaptureComponent(const AControl: TControl; const ASavefile: string): Boolean;
-
+procedure ShowFixedMsg(const ATitle, AMsg: string);
 function ReadAllText_Unicode(const AFilePath: string=''): string;
 function WriteAllText_Unicode(const AFilePath, AContents: string): Boolean;
 
@@ -64,6 +64,90 @@ implementation
 
 uses
   SYstem.UIConsts;
+
+{ Message DIalog }
+
+const
+  C_ShortKeys = '''
+
+                *** Shortcut Keys ***
+                [ Ctrl+A   ] Show Cell Weights
+                [ Ctrl+G   ] Show Grids
+                [ Ctrl+M   ] Load Map
+                [ Ctrl+O   ] Options
+                [ Ctrl+R   ] Reset
+                [ Ctrl+S   ] Screenshot
+                [ Ctrl+F   ] Help
+
+                *** Mouse Actions ***
+                [ ML-Down  ] Drag / Pan
+                [ MR-Down  ] Change Cell Weight (0<->255)
+                [ MR+Shift ] Sequencial Change Cell Weight -> 0
+                [ MR+ALt   ] Sequencial Change Cell Weight -> 255
+                [ Wheel    ] Zoom
+
+                *** KeyBoard ***
+                [ Left     ] Move to Left
+                [ Right    ] Move to Right
+                [ Up       ] Move to Up
+                [ Down     ] Move to Down
+                [ Ctrl+Up  ] Zoom In
+                [ Ctrl+Down] Zoom Out
+
+              ''';
+
+procedure ShowFixedMsg(const ATitle, AMsg: string);
+begin
+  var _MsgForm := TForm.CreateNew(Application);
+  try
+    if (Application.MainForm <> nil) and
+       (Application.MainForm.StyleBook <> nil) then
+    _MsgForm.StyleBook := Application.MainForm.StyleBook;
+
+    with _MsgForm do
+    begin
+      Caption := ATitle;
+      Width := 500;
+      Height := 550;
+      BorderIcons := [];
+      Position := TFormPosition.MainFormCenter;
+      BorderStyle := TFmxFormBorderStyle.Single; // None - No Title
+      BorderIcons := [];
+    end;
+
+    var _MsgText := TMemo.Create(_MsgForm);
+    with _MsgText do
+    begin
+      Parent := _MsgForm;
+      Align := TAlignLayout.Client;
+      Margins.Rect := TRectF.Create(10, 10, 10, 50);
+      ReadOnly := True;
+      Text := C_ShortKeys;
+
+      TextSettings.Font.Family := 'Consolas';
+      TextSettings.Font.Size := 14;
+      StyledSettings := StyledSettings - [TStyledSetting.Family, TStyledSetting.Size];
+    end;
+
+    var _OkBtn := TButton.Create(_MsgForm);
+    with _OkBtn do
+    begin
+      Parent := _MsgForm;
+      Text := 'OK';
+      Width := 80;
+      Height := 30;
+      Position.X := (_MsgForm.Width - _OkBtn.Width) / 2;
+      Position.Y := _MsgForm.Height - 75;
+      Default := True;
+
+      ModalResult := mrOk;
+    end;
+
+    _MsgForm.ShowModal;
+  finally
+    _MsgForm.Free;
+  end;
+end;
 
 { Global_TrimAppMemorySizeEx }
 
@@ -188,7 +272,8 @@ begin
 end;
 
 function MakeAlphaColor(Color: TAlphaColor; Alpha: Byte): TAlphaColor;
-var Rec: TAlphaColorRec;
+var
+  Rec: TAlphaColorRec;
 begin
   Rec.Color := Color;
   Rec.A := Alpha;

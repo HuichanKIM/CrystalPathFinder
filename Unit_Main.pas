@@ -7,6 +7,8 @@
 
 interface
 
+{$INLINE ON}
+
 uses
   System.SysUtils,
   System.Types,
@@ -33,9 +35,11 @@ uses
   FMX.Filter.Effects,
   FMX.EditBox,
   FMX.SpinBox,
-  FMX.NumberBox,
+  FMX.Memo.Types,
+  FMX.ScrollBox,
+  FMX.Memo,
   //
-  CrystalPathFinding_ex;
+  CrystalPathFinding_ex, FMX.Colors;
 
 type
   { Enum to manage mouse interaction states including custom weight painting }
@@ -84,11 +88,29 @@ type
     Label_GridCellSize: TLabel;
     Label2: TLabel;
     Label3: TLabel;
+    Button_Shortkeys: TButton;
+    Action_ShowGrids: TAction;
+    Action_Help: TAction;
+    CheckBox_JPS: TCheckBox;
+    Label1: TLabel;
+    Rectangle_Yellow: TRectangle;
+    Rectangle_White: TRectangle;
+    Rectangle_Blue: TRectangle;
+    Rectangle_Black: TRectangle;
+    Rectangle_Colors: TRectangle;
 
     procedure FormCreate(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+    procedure Action_ScreenshotExecute(Sender: TObject);
+    procedure Action_AnalysisExecute(Sender: TObject);
+    procedure ActionList1Update(Action: TBasicAction; var Handled: Boolean);
+    procedure Action_LoadMapExecute(Sender: TObject);
+    procedure Action_ResetMapExecute(Sender: TObject);
+    procedure Action_ShowGridsExecute(Sender: TObject);
+    procedure Action_HelpExecute(Sender: TObject);
     procedure PaintBox_MapMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure PaintBox_MapMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
     procedure PaintBox_MapPaint(Sender: TObject; Canvas: TCanvas);
@@ -101,17 +123,16 @@ type
     procedure TrackBar_TileSizeChange(Sender: TObject);
     procedure Button_HeighlightMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Button_HeighlightMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-    procedure Action_ScreenshotExecute(Sender: TObject);
-    procedure Action_AnalysisExecute(Sender: TObject);
-    procedure ActionList1Update(Action: TBasicAction; var Handled: Boolean);
-    procedure Action_LoadMapExecute(Sender: TObject);
-    procedure Action_ResetMapExecute(Sender: TObject);
-    procedure Label_TitleClick(Sender: TObject);
+    procedure Button_ShortkeysClick(Sender: TObject);
     procedure Button_DefaultParamsClick(Sender: TObject);
+    procedure Label_TitleClick(Sender: TObject);
+    procedure CheckBox_AnalysisChange(Sender: TObject);
+    procedure Rectangle_YellowClick(Sender: TObject);
   private
     FTileMap: TTileMap;
     FCurrentPath: TTileMapPath;
     FBackgroundBitmap: TBitmap;
+
     FViewOffset: TPointF;
     FCellSize: Single;
     FSetCellSize: Single;
@@ -124,6 +145,7 @@ type
     FIsHighlightMode: Boolean;
 
     FDefaultBackColor: TAlphaColor;
+    FPathColor: TAlphaColor;
     FLockMapFlag: Boolean;
     FDefaultMap: TImage;
     FZoomRatio: Single;
@@ -135,7 +157,6 @@ type
     FCurrentWightFlag: Byte;
     FCurrGridX: Integer;
     FCurrGridY: Integer;
-
     procedure InitializeGrid(const ADefault: Boolean = False);
     procedure UpdatePath(const AUpdateStatus: Boolean = False);
 
@@ -147,12 +168,15 @@ type
     function HexCellAt(const AScreenPos: TPointF): TPoint;
 
     procedure AnalyzeHeightMap;
+    procedure AnalyzeHeightMap_ex;
     procedure CenterMap(const AInitFlag: Boolean = False);
     procedure ConstrainViewOffset;
     procedure AutoCropImage(ABitmap: TBitmap);
     procedure CalculateWeightsFromImage(const ADefault: Boolean = False);
     procedure AdjustMarkersToViewport;
     procedure HexMapPixelSize(out AWidth, AHeight: Single);
+
+    procedure DrawLogo(const ACanvas: TCanvas);
     procedure DrawTiles(ACanvas: TCanvas);
     procedure DrawTilesEx(ACanvas: TCanvas);
     procedure DrawGrid(ACanvas: TCanvas);
@@ -193,23 +217,30 @@ uses
   System.IOUtils,
   System.Math.Vectors,
   System.IniFiles,
+  FMX.Platform,
   FMX.Ani;
 
 
 {$R *.fmx}
 
 const
-  C_CellSizeDefault = 32.0;
   C_CaptionTitle    = 'Crystal Path Finder - Copyright '+ Char(169)+' 2026 Huicahan Kim';
 
 const
+  C_CellSizeDefault = 32.0;
+  C_ColStep = 0.75;
   C_Sqrt3_2 = 0.8660254037844387;                                               // sqrt(3) / 2  — exact to 16 digits
-
+  C_PathColors: array [0..3] of TAlphaColor = (TAlphaColorRec.Yellow, TAlphaColorRec.White,TAlphaColorRec.Blue,TAlphaColorRec.Black);
 
 { TFormMain ------------------------------------------------------------------ }
 
-procedure TFormMain.FormCreate(Sender: TObject);
+procedure TFormMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+  PaintBox_Map.OnPaint := nil;
+end;
+
+procedure TFormMain.FormCreate(Sender: TObject);
+begin                     
   Self.Caption :=       C_CaptionTitle;
 
   FIsHighlightMode :=   False;
@@ -233,6 +264,8 @@ begin
   CheckBoox_Parallel.IsChecked := True;
   CheckBox_ShowGrid.IsChecked :=  True;
 
+  FPathColor := TAlphaColors.Yellow;
+
   with ComboBox_Kind do
   begin
     OnChange := nil;
@@ -244,7 +277,7 @@ begin
     ItemIndex := 1;
     OnChange  := ComboBox_KindChange;
   end;
-
+  
   TrackBar_Weight.Value := 5;
   Label_WeightScale.Text := Format('Map Weight Scale %.2f', [TrackBar_Weight.Value / 10]);
   FSetCellSize := C_CellSizeDefault;
@@ -254,9 +287,11 @@ begin
   LoadIniOptions();
   SetupMultiViewPopup;
 
+  Button_LoadMap.Default := True;
+
   { Create initial small map to be resized in InitializeGrid }
-  FTileMap := TTileMap.Create(10, 10, TTileMapKind.mkDiagonal);
   // ------------------------------------------------------------------------ //
+  FTileMap := TTileMap.Create(10, 10, TTileMapKind.mkDiagonal);
   InitializeGrid(False);
   // ------------------------------------------------------------------------ //
 end;
@@ -264,14 +299,17 @@ end;
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
   SaveIniOptions();
-  FCurrentPath.Free;
+  FCurrentPath.Release;
   FTileMap.Free;
-  if Assigned(FBackgroundBitmap) then FBackgroundBitmap.Free;
+  FBackgroundBitmap.Free;
 end;
 
 procedure TFormMain.LoadIniOptions();
 begin
   var _IniConfig: TMemIniFile := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
+  var _ColorStr1: string := AlphaColorToString(TAlphaColors.Yellow);
+  var _ColorStr2: string := _ColorStr1;
+
   if Assigned(_IniConfig) then
   with _IniConfig do
   try
@@ -281,7 +319,8 @@ begin
     CheckBox_CellWeight.IsChecked  := ReadBool   ('UIOptions',   'Cellweight',   False);
     CheckBox_SmoothLine.IsChecked  := ReadBool   ('UIOptions',   'Soothline',    False);
     CheckBox_ShowGrid.IsChecked    := ReadBool   ('UIOptions',   'ShowGrid',     True);
-
+                  _ColorStr2       := ReadString ('UIOptions',   'PathColor',    _ColorStr1);
+    FPathColor                     := StringToAlphaColor(_ColorStr2);
     TrackBar_Weight.Value          := ReadFloat  ('MapParams',   'SetWeight',    5.0);
     TrackBar_TileSize.Value        := ReadFloat  ('MapParams',   'Tilesize',     C_CellSizeDefault);
     TrackBar_CellWeight.Value      := ReadFloat  ('MapParams',   'CellWeight',   100.0);
@@ -295,6 +334,7 @@ end;
 procedure TFormMain.SaveIniOptions();
 begin
   var _IniConfig: TMemIniFile := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
+  var _ColorStr: string := AlphaColorToString(FPathColor);
   if Assigned(_IniConfig) then
   with _IniConfig do
   try
@@ -307,6 +347,7 @@ begin
     WriteFloat  ('MapParams',    'SetWeight',     TrackBar_Weight.Value);
     WriteFloat  ('MapParams',    'Tilesize',      TrackBar_TileSize.Value);
     WriteFloat  ('MapParams',    'CellWeight',    TrackBar_CellWeight.Value);
+    WriteString ('UIOptions',    'PathColor',     _ColorStr);
 
     WriteInteger('MapParams',    'MapKind',       ComboBox_Kind.ItemIndex);
   finally
@@ -319,10 +360,7 @@ procedure TFormMain.FormResize(Sender: TObject);
 begin
   if FLockMapFlag then Exit;
 
-  if FTileMap <> nil then
-  begin
-    CenterMap;
-  end;
+  if FTileMap <> nil then CenterMap;
   // ------------------------------------------------------------------------ //
   PaintBox_Map.Repaint;
   // ------------------------------------------------------------------------ //
@@ -333,7 +371,7 @@ begin
   with MultiView_Options do
   begin
     Mode := TMultiViewMode.Popover;
-    PopoverOptions.PopupHeight := 500;
+    PopoverOptions.PopupHeight := 560;
     MasterButton := Button_Options;
     TargetControl := nil;
 
@@ -365,7 +403,7 @@ end;
 
 procedure TFormMain.FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
 const
-  _MoveStep = 20.0; // Arrow key movement sensitivity (pixels)
+  _MoveStep = 20.0;                                                             // Arrow key movement sensitivity (pixels)
 begin
   if FLockMapFlag then Exit;
 
@@ -407,9 +445,9 @@ begin
   if _effectflag then
   begin
     FLastMousePos := FViewOffset;
-    // ------------------------------------------------------------------------ //
+    // ---------------------------------------------------------------------- //
     PaintBox_Map.Repaint;
-    // ------------------------------------------------------------------------ //
+    // ---------------------------------------------------------------------- //
   end;
 end;
 
@@ -420,6 +458,7 @@ begin
   begin
     var _Idx := AGridPos.Y * FTileMap.Width + AGridPos.X;
     FWeights[_Idx] := Value;
+    PaintBox_Map.Repaint;
   end;
 end;
 
@@ -428,6 +467,7 @@ begin
   if FSetCellSize <> Value then
   begin
     FSetCellSize := Value;
+    PaintBox_Map.Repaint;
   end;
 end;
 
@@ -436,7 +476,7 @@ begin
   Result := MakeAlphaColor(TAlphaColors.Greenyellow, 40);
   { Visualize colors according to the brightness concentration
     Red with higher weights and Yellow/Green with lower weights }
-  if AWeight > 180 then Result := MakeAlphaColor(TAlphaColors.Red, 130) else
+  if AWeight > 180 then Result := MakeAlphaColor(TAlphaColors.Red, 130)    else
   if AWeight > 120 then Result := MakeAlphaColor(TAlphaColors.Orange, 100) else
   if AWeight > 60  then Result := MakeAlphaColor(TAlphaColors.Yellow, 70);
 end;
@@ -455,7 +495,7 @@ begin
   if FTileMap.Kind = TTileMapKind.mkHexagonal then
   begin
     { Real hex pixel dimensions }
-    _MapWidth :=  (FTileMap.Width  - 1) * FCellSize * 0.75 + FCellSize;
+    _MapWidth :=  (FTileMap.Width  - 1)   * FCellSize * C_ColStep + FCellSize;
     _MapHeight := (FTileMap.Height + 0.5) * FCellSize * C_Sqrt3_2;
   end;
 
@@ -474,12 +514,12 @@ procedure TFormMain.HexMapPixelSize(out AWidth, AHeight: Single);
 begin
   if FTileMap.Kind = TTileMapKind.mkHexagonal then
     begin
-      AWidth :=  (FTileMap.Width  - 1) *   FCellSize * 0.75 + FCellSize;
+      AWidth  := (FTileMap.Width  - 1) *   FCellSize * C_ColStep + FCellSize;
       AHeight := (FTileMap.Height + 0.5) * FCellSize * C_Sqrt3_2;
     end
   else
     begin
-      AWidth :=  FTileMap.Width  * FCellSize;
+      AWidth  := FTileMap.Width  * FCellSize;
       AHeight := FTileMap.Height * FCellSize;
     end;
 end;
@@ -492,10 +532,15 @@ begin
   var _MapHeight: Single := 0;
   HexMapPixelSize(_MapWidth, _MapHeight);
 
-  FViewOffset.X := (PaintBox_Map.Width  - _MapWidth) / 2;
+  FViewOffset.X := (PaintBox_Map.Width  - _MapWidth) /  2;
   FViewOffset.Y := (PaintBox_Map.Height - _MapHeight) / 2;
-  if not AInitFlag then
-    ConstrainViewOffset;
+
+  ConstrainViewOffset;
+end;
+
+procedure TFormMain.CheckBox_AnalysisChange(Sender: TObject);
+begin
+  PaintBox_Map.Repaint;
 end;
 
 { ============================================================================ }
@@ -517,21 +562,17 @@ begin
     begin
       { Find which columns and rows are actually on screen by scanning
         the grid boundaries rather than reverse-projecting screen corners }
-      var _ColStep := FCellSize * 0.75;
+      var _ColStep := FCellSize * C_ColStep;
       var _HexH    := FCellSize * C_Sqrt3_2;
 
       { Leftmost column whose centre is >= screen left }
       _FirstVisCol := Max(0, Trunc((0 - FViewOffset.X - FCellSize) / _ColStep));
-
       { Rightmost column whose centre is <= screen right }
       _LastVisCol :=  Min(FTileMap.Width - 1, Trunc((PaintBox_Map.Width - FViewOffset.X) / _ColStep) + 1);
-
       { Top-most row }
       _FirstVisRow := Max(0, Trunc((0 - FViewOffset.Y - _HexH) / _HexH));
-
       { Bottom-most row }
       _LastVisRow :=  Min(FTileMap.Height - 1, Trunc((PaintBox_Map.Height - FViewOffset.Y) / _HexH) + 1);
-
       { Clamp to full grid if calculation yields inverted range }
       if _FirstVisCol > _LastVisCol then
         begin
@@ -556,7 +597,7 @@ begin
     end;
 
   var _MidRow := (_FirstVisRow + _LastVisRow) div 2;
-  var _SpanX  := _LastVisCol - _FirstVisCol;
+  var _SpanX  :=  _LastVisCol -  _FirstVisCol;
 
   FStartPos  := Point(Max(_FirstVisCol, _FirstVisCol + _SpanX div 4),     _MidRow);
   FFinishPos := Point(Min(_LastVisCol,  _FirstVisCol + _SpanX * 3 div 4), _MidRow);
@@ -613,57 +654,59 @@ end;
 procedure TFormMain.InitializeGrid(const ADefault: Boolean = False);
 begin
   var _CellSize := FSetCellSize;
-  if ADefault then _CellSize := TrackBar_TileSize.Value;
+  if ADefault then
+    _CellSize := TrackBar_TileSize.Value;
+
   FSetCellSize := _CellSize;
 
   { Calculate grid dimensions based on current PaintBox size }
-  var _TileWidth :=  Max(5, Trunc(PaintBox_Map.Width /  FSetCellSize));
+  var _TileWidth := Max(5, Trunc(PaintBox_Map.Width / FSetCellSize));
   var _TileHeight := Max(5, Trunc(PaintBox_Map.Height / FSetCellSize));
 
   if not FLockMapFlag and Assigned(FBackgroundBitmap) then
   begin
-    if FTileMap.Kind = TTileMapKind.mkHexagonal then   {Deprecating ... }
-      begin
-        _TileWidth  := Max(10, Trunc(FBackgroundBitmap.Width  / (FSetCellSize * 0.75)));
-        _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / (FSetCellSize * C_Sqrt3_2)));
-      end
+    if FTileMap.Kind = TTileMapKind.mkHexagonal then
+    begin
+      _TileWidth  := Max(10, Trunc(FBackgroundBitmap.Width  / (FSetCellSize * C_ColStep)));
+      _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / (FSetCellSize * C_Sqrt3_2)));
+    end
     else
-      begin
-       _TileWidth :=  Max(10, Trunc(FBackgroundBitmap.Width /  FSetCellSize));
-       _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / FSetCellSize));
-      end;
+    begin
+      _TileWidth  := Max(10, Trunc(FBackgroundBitmap.Width  / FSetCellSize));
+      _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / FSetCellSize));
+    end;
   end;
-
 
   SetLength(FWeights, _TileWidth * _TileHeight);
   FillChar(FWeights[0], Length(FWeights) * SizeOf(Byte), 0);
-  // Create New TileMap  ---------------------------------------------------- //
-  var _tilemapkind := TTileMapKind(ComboBox_Kind.ItemIndex);
-  if FLockMapFlag then  _tilemapkind := TTileMapKind.mkDiagonal;
 
+  { Create New TileMap ---------------------------------------------------- }
+  var _tilemapkind := TTileMapKind(ComboBox_Kind.ItemIndex);
+  if FLockMapFlag then _tilemapkind := TTileMapKind.mkDiagonal;
+
+  { Important: Free previous instances first }
   FreeAndNil(FTileMap);
   FTileMap := TTileMap.Create(_TileWidth, _TileHeight, _tilemapkind);
   FillChar(FTileMap.Data^, _TileWidth * _TileHeight, 0);
-  // ------------------------------------------------------------------------ //
 
   MultiView_Background.Enabled := not FLockMapFlag;
 
   if FLockMapFlag then Exit;
 
-  FCurrentPath.Free;
-  FStartPos :=  TPoint.Create(Trunc(_TileWidth * 0.1), Trunc(_TileHeight * 0.5));
+  { Set default start and finish positions }
+  FStartPos  := TPoint.Create(Trunc(_TileWidth * 0.1), Trunc(_TileHeight * 0.5));
   FFinishPos := TPoint.Create(Trunc(_TileWidth * 0.9), Trunc(_TileHeight * 0.5));
+
   if CheckBox_Calcurate.IsChecked then
     CalculateWeightsFromImage;
 
   FCellSize := FSetCellSize;
-  // ---------------------------------------------------------------------- //
-  AnalyzeHeightMap;
+
+  { Analyze terrain and update path }
+  AnalyzeHeightMap_ex;
   CenterMap;
   AdjustMarkersToViewport;
-  UpdatePath(True);
-  // ---------------------------------------------------------------------- //
-
+  UpdatePath(True);    // Recalculate path
 end;
 
   { ---- Classify a Single Pixel into a Terrain Type ------------------------- }
@@ -712,7 +755,7 @@ end;
 
     { 4. Bright building rooftop / parking lot -> Weight 25                    }
     {    Low S and high V: concrete surfaces, flat rooftops                    }
-    if (S < 0.22) and (V > 0.75) then
+    if (S < 0.22) and (V > C_ColStep) then
     begin
       AWall := False; AWeight := 25; Exit;
     end;
@@ -818,11 +861,11 @@ begin
     {         mountain-heavy maps                                            }
     {                                                                        }
     { Range: 0.35 (strict / fewer walls) ~ 0.65 (loose / more walls)         }
-    var _WallThresh: Single := EnsureRange(             // Fraction of wall-pixels per cell to trigger wall
-      0.55                                              // Base threshold
-      - (_MeanV - 0.40) * 0.30                          // Brighter image -> stricter (lower)
-      + (_MeanS - 0.15) * 0.25,                         // Higher saturation -> looser (higher)
-      0.35, 0.65);
+    var _WallThresh: Single := EnsureRange(                                     // Fraction of wall-pixels per cell to trigger wall
+                                  0.55                                          // Base threshold
+                                  - (_MeanV - 0.40) * 0.30                      // Brighter image -> stricter (lower)
+                                  + (_MeanS - 0.15) * 0.25,                     // Higher saturation -> looser (higher)
+                                  0.35, 0.65);
 
     { ====================================================================== }
     { 2-Pass: Per-cell pixel classification -> weight + wall decision        }
@@ -843,12 +886,8 @@ begin
         _WallVotes  := 0;
         _PixelCount := 0;
 
-        for var _py := Max(0, Trunc(_GridY * _StepY))
-                to Min(FBackgroundBitmap.Height - 1,
-                       Trunc((_GridY + 1) * _StepY) - 1) do
-          for var _px := Max(0, Trunc(_GridX * _StepX))
-                  to Min(FBackgroundBitmap.Width - 1,
-                         Trunc((_GridX + 1) * _StepX) - 1) do
+        for var _py := Max(0, Trunc(_GridY * _StepY))   to Min(FBackgroundBitmap.Height - 1,  Trunc((_GridY + 1) * _StepY) - 1) do
+          for var _px := Max(0, Trunc(_GridX * _StepX)) to Min(FBackgroundBitmap.Width - 1,   Trunc((_GridX + 1) * _StepX) - 1) do
           begin
             _Rec := TAlphaColorRec(_Data.GetPixel(_px, _py));
             ClassifyPixel(_Rec.R, _Rec.G, _Rec.B, _PixW, _IsWall);
@@ -886,6 +925,105 @@ begin
   end;
 end;
 
+procedure TFormMain.AnalyzeHeightMap_ex;
+begin
+  if FBackgroundBitmap.IsEmpty or (FTileMap = nil) then Exit;
+
+  SetLength(FWeights, FTileMap.Width * FTileMap.Height);
+  FillChar(FWeights[0], Length(FWeights) * SizeOf(Byte), 0);
+
+  var _StepX := FBackgroundBitmap.Width / FTileMap.Width;
+  var _StepY := FBackgroundBitmap.Height / FTileMap.Height;
+
+  FWeightMultiplier := TrackBar_Weight.Value / 10.0;
+  if FWeightMultiplier <= 0 then FWeightMultiplier := 1.0;
+
+  var _Data: TBitmapData;
+  if not FBackgroundBitmap.Map(TMapAccess.Read, _Data) then Exit;
+  try
+    { 1-Pass statistics }
+    var _TotalSamples  := 0;
+    var _SumV: Double  := 0;      // Accumulated brightness (V) across all samples
+    var _MeanV: Single := 0;      // Mean brightness of the entire image
+    var _SumS: Double  := 0;      // Accumulated saturation (S) across all samples
+    var _MeanS: Single := 0;      // Mean saturation of the entire image
+
+    var _Rec: TAlphaColorRec;
+    var _H, _S, _V: Single;
+
+    for var _py := 0 to FBackgroundBitmap.Height - 1 do
+    begin
+      if _py mod 4 <> 0 then Continue;
+      for var _px := 0 to FBackgroundBitmap.Width - 1 do
+      begin
+        if _px mod 4 <> 0 then Continue;
+        _Rec := TAlphaColorRec(_Data.GetPixel(_px, _py));
+        RGBToHSV(_Rec.R, _Rec.G, _Rec.B, _H, _S, _V);
+        _SumV := _SumV + _V;
+        _SumS := _SumS + _S;
+        Inc(_TotalSamples);
+      end;
+    end;
+
+    if _TotalSamples > 0 then
+      begin
+        _MeanV := _SumV / _TotalSamples;
+        _MeanS := _SumS / _TotalSamples;
+      end
+    else
+      begin
+        _MeanV := 0.45;     // Neutral fallback if sampling fails
+        _MeanS := 0.20;
+      end;
+
+    { Adaptive Wall Threshold }
+    var _WallThresh: Single := EnsureRange(
+      0.55 - (_MeanV - 0.40) * 0.30 + (_MeanS - 0.15) * 0.25,
+      0.35, 0.65);
+
+    TParallel.For(0, FTileMap.Height - 1,
+      procedure(_GridY: Integer)
+      var
+        _WeightSum: Int64; _WallVotes, _PixelCount: Integer;
+        _PixW: Byte; _IsWall: Boolean;
+        _FinalWeight: Integer;
+        _Idx: Integer;
+      begin
+        for var _GridX := 0 to FTileMap.Width - 1 do
+        begin
+          _WeightSum := 0; _WallVotes := 0; _PixelCount := 0;
+
+          for var _py := Max(0, Trunc(_GridY * _StepY)) to Min(FBackgroundBitmap.Height-1, Trunc((_GridY+1)*_StepY)-1) do
+            for var _px := Max(0, Trunc(_GridX * _StepX)) to Min(FBackgroundBitmap.Width-1, Trunc((_GridX+1)*_StepX)-1) do
+            begin
+              var _Rec := TAlphaColorRec(_Data.GetPixel(_px, _py));
+              ClassifyPixel(_Rec.R, _Rec.G, _Rec.B, _PixW, _IsWall);
+              if _IsWall then Inc(_WallVotes);
+              _WeightSum := _WeightSum + _PixW;
+              Inc(_PixelCount);
+            end;
+
+          if _PixelCount = 0 then Continue;
+          _Idx := _GridY * FTileMap.Width + _GridX;
+
+          if (_WallVotes / _PixelCount) >= _WallThresh then
+          begin
+            (FTileMap.Data + _Idx)^ := 1;
+            FWeights[_Idx] := 255;
+          end
+          else
+          begin
+            (FTileMap.Data + _Idx)^ := 0;
+            _FinalWeight := Trunc((_WeightSum / _PixelCount) * FWeightMultiplier);
+            FWeights[_Idx] := EnsureRange(_FinalWeight, 0, 254);
+          end;
+        end;
+      end);
+  finally
+    FBackgroundBitmap.Unmap(_Data);
+  end;
+end;
+
 function TFormMain.IsInGrid(AGX, AGY: Integer): Boolean;
 begin
   Result := (AGX >= 0) and (AGX < FTileMap.Width) and (AGY >= 0) and (AGY < FTileMap.Height);
@@ -893,26 +1031,37 @@ end;
 
 procedure TFormMain.UpdatePath(const AUpdateStatus: Boolean = False);
 begin
-  if (FTileMap = nil) or (not IsInGrid(FStartPos.X, FStartPos.Y)) or (not IsInGrid(FFinishPos.X, FFinishPos.Y)) then Exit;
+  if (FTileMap = nil) or (not IsInGrid(FStartPos.X, FStartPos.Y)) or
+     (not IsInGrid(FFinishPos.X, FFinishPos.Y)) then Exit;
 
-  FCurrentPath.Free;
-  var _Stopwatch := TStopwatch.StartNew;
-  if CheckBoox_Parallel.IsChecked then
-    FCurrentPath := FTileMap.FindPathParallel(FStartPos, FFinishPos, @FWeights[0])
-  else
-    FCurrentPath := FTileMap.FindPath(FStartPos, FFinishPos, @FWeights[0]);
-  _Stopwatch.Stop;
+  FCurrentPath.Release;
 
-  FPerformanceTick := _Stopwatch.ElapsedMilliseconds;
-  // ------------------------------------------------------------------------ //
-  PaintBox_Map.Repaint;
-  // ------------------------------------------------------------------------ //
-  if AUpdateStatus then UpdateStatusLabel();
+  TTask.Run(
+    procedure
+    begin
+      var _Stopwatch := TStopwatch.StartNew;
+      if CheckBox_JPS.IsChecked then
+        FCurrentPath := FTileMap.FindPathJPS(FStartPos, FFinishPos, @FWeights[0]) else
+      if CheckBoox_Parallel.IsChecked then
+        FCurrentPath := FTileMap.FindPathParallel(FStartPos, FFinishPos, @FWeights[0])
+      else
+        FCurrentPath := FTileMap.FindPath(FStartPos, FFinishPos, @FWeights[0]);
+      _Stopwatch.Stop;
+
+      FPerformanceTick := _Stopwatch.ElapsedMilliseconds;
+      TThread.Synchronize(nil,
+        procedure
+        begin
+          // ---------------------------------------------------------------- //
+          PaintBox_Map.Repaint;
+          // ---------------------------------------------------------------- //
+          if AUpdateStatus then
+            UpdateStatusLabel();
+        end);
+    end);
 end;
 
 { Drawing .................................................................... }
-
-
 {
   REFERENCE: Terrain Analysis & Weight Calculation Logic
   -----------------------------------------------------
@@ -999,11 +1148,11 @@ function HexCenterF(const GX, GY: Integer;
                     const AViewOffset: TPointF): TPointF;
 begin
   var _HexH     := ACellSize * C_Sqrt3_2;
-  var _ColStep  := ACellSize * 0.75;
+  var _ColStep  := ACellSize * C_ColStep;
   var _OddColOffset := IfThen(Odd(GX), _HexH * 0.5, 0);
 
-  Result.X := AViewOffset.X + GX * _ColStep + ACellSize * 0.5;
-  Result.Y := AViewOffset.Y + GY * _HexH + _OddColOffset + _HexH * 0.5;
+  Result.X := AViewOffset.X + Single(GX) * _ColStep + ACellSize * 0.5;
+  Result.Y := AViewOffset.Y + Single(GY) * _HexH + _OddColOffset + _HexH * 0.5;
 end;
 
 { ============================================================================ }
@@ -1021,7 +1170,8 @@ begin
   { = CellSize / 2  when CellSize is the flat-to-flat (short) diameter  }
   { = CellSize / sqrt(3)  for point-to-point (long) diameter            }
   { Here CellSize is flat-to-flat, so circumradius = CellSize / sqrt(3) }
-  var Radius := ACellSize / 1.7320508;   // 1/sqrt(3)
+  // Modified by ichin 2026-03-26 목 오후 5:28:05
+  var Radius := ACellSize / 1.7320508;//2.0;// 1.7320508;   // 1/sqrt(3)
   var AngleRad: Single := 0;
 
   for var _i := 0 to 5 do
@@ -1044,34 +1194,20 @@ procedure DrawHex(ACanvas: TCanvas;
                   AStrokeThick: Single;
                   ADoFill: Boolean);
 var
-  Corners: array[0..5] of TPointF;
+  Corners: TPolygon;
 begin
+  SetLength(Corners, 6);
   HexCorners(ACentre, ACellSize, Corners);
 
-  var _Path := TPathData.Create;
-  try
-    _Path.MoveTo(Corners[0]);
-    _Path.LineTo(Corners[1]);
-    _Path.LineTo(Corners[2]);
-    _Path.LineTo(Corners[3]);
-    _Path.LineTo(Corners[4]);
-    _Path.LineTo(Corners[5]);
-    _Path.ClosePath;
-
-    if ADoFill then
-    begin
-      ACanvas.Fill.Kind  := TBrushKind.Solid;
-      ACanvas.Fill.Color := AFillColor;
-      ACanvas.FillPath(_Path, 1.0);
-    end;
-
-    ACanvas.Stroke.Kind      := TBrushKind.Solid;
-    ACanvas.Stroke.Color     := AStrokeColor;
-    ACanvas.Stroke.Thickness := AStrokeThick;
-    ACanvas.DrawPath(_Path, 1.0);
-  finally
-    _Path.Free;
+  if ADoFill then
+  begin
+    ACanvas.Fill.Color := AFillColor;
+    ACanvas.FillPolygon(Corners, 0.5);
   end;
+
+  ACanvas.Stroke.Kind := TBrushKind.Solid;
+  ACanvas.Stroke.Color := AStrokeColor;
+  ACanvas.DrawPolygon(Corners, 0.5);
 end;
 
 { Returns the screen-space centre of hex cell (GX, GY). }
@@ -1079,7 +1215,7 @@ end;
 function TFormMain.HexCellCenter(const AGX, AGY: Integer): TPointF;
 begin
   var _HexH    := FCellSize * C_Sqrt3_2;
-  var _ColStep := FCellSize * 0.75;
+  var _ColStep := FCellSize * C_ColStep;
   var _OddOff  := IfThen(Odd(AGX), _HexH * 0.5, 0.0);
   Result.X := FViewOffset.X + AGX * _ColStep + FCellSize * 0.5;
   Result.Y := FViewOffset.Y + AGY * _HexH + _OddOff + _HexH * 0.5;
@@ -1091,9 +1227,9 @@ function TFormMain.HexCellAt(const AScreenPos: TPointF): TPoint;
 begin
   Result := TPoint.Zero;
   if (FTileMap = nil) or (FCellSize <= 0) then Exit;
-  
-  var _HexH      := FCellSize * C_Sqrt3_2;
-  var _ColStep   := FCellSize * 0.75;
+
+  var _HexH    := FCellSize * C_Sqrt3_2;
+  var _ColStep := FCellSize * C_ColStep;
 
   { Raw estimate — may be negative or beyond grid bounds, that is fine }
   var _ApproxCol := Trunc((AScreenPos.X - FViewOffset.X) / _ColStep);
@@ -1102,7 +1238,7 @@ begin
     neighbours without going absurdly far out of range }
   _ApproxCol := EnsureRange(_ApproxCol, -1, FTileMap.Width);
   _ApproxRow := EnsureRange(_ApproxRow, -1, FTileMap.Height);
-      
+
   var _BestDist  := MaxSingle;
   var _BestCol   := EnsureRange(_ApproxCol, 0, FTileMap.Width  - 1);
   var _BestRow   := EnsureRange(_ApproxRow, 0, FTileMap.Height - 1);
@@ -1197,7 +1333,6 @@ begin
     end;
 end;
 
-
 procedure TFormMain.DrawTiles(ACanvas: TCanvas);
 begin
   // Set Viewport Rectangle
@@ -1224,14 +1359,13 @@ begin
           ACanvas.Fill.Color := MakeColor(TAlphaColors.Black, 150);
           ACanvas.FillRect(_R, 0, 0, [], 1.0);
         end
-      else if FWeights[_Idx] > 50 then //10 then
+      else if FWeights[_Idx] > 50 then
         begin
           ACanvas.Fill.Color := GetWeightColor(FWeights[_Idx]);
           ACanvas.FillRect(_R, 0, 0, [], 1);
         end;
     end;
 end;
-
 
 { ============================================================================ }
 {  DrawTilesEx                                                                 }
@@ -1252,40 +1386,34 @@ begin
   { --- Hexagonal tiles --- }
   var _ViewRect := RectF(0, 0, PaintBox_Map.Width, PaintBox_Map.Height);
   var _HexH := FCellSize * C_Sqrt3_2;
+  var _ColStep := FCellSize * C_ColStep;
   var _Idx: Integer := 0;
   var _Val: Byte := 0;
   var _Centre := TPointF.Zero;
 
-  for var _GY := 0 to FTileMap.Height - 1 do
-    for var _GX := 0 to FTileMap.Width - 1 do
+  // 1. Use Floor/Ceil to get a wider range when calculating the index (plus margin +2)
+  var _FirstCol := Max(0, Floor(-FViewOffset.X / _ColStep) - 1);
+  var _LastCol  := Min(FTileMap.Width - 1, Ceil((PaintBox_Map.Width - FViewOffset.X) / _ColStep) + 1);
+
+  // Hex has odd columns down, so the Row range must be wider up and down to not be cut off
+  var _FirstRow := Max(0, Floor(-FViewOffset.Y / _HexH) - 2);
+  var _LastRow  := Min(FTileMap.Height - 1, Ceil((PaintBox_Map.Height - FViewOffset.Y) / _HexH) + 2);
+
+  for var _GY := _FirstRow to _LastRow do                                       // It's not from 0 to Height, but only visible rows!
+    for var _GX := _FirstCol to _LastCol do                                     // It's not from 0 to WIDTH, but only the visible ten!
     begin
       _Idx := _GY * FTileMap.Width + _GX;
+      if (_Idx < 0) or (_Idx >= Length(FWeights)) then Continue;                //  safety
+
       _Val := (FTileMap.Data + _Idx)^;
+      if (_Val = 1) or (FWeights[_Idx] > 50) then                               // Illustrated only when wall (1) or weight is present
+      begin
+        _Centre := HexCenterF(_GX, _GY, FCellSize, FViewOffset);
 
-      _Centre := HexCenterF(_GX, _GY, FCellSize, FViewOffset);
-
-      { Viewport cull }
-      if (_Centre.X + FCellSize < _ViewRect.Left)  or
-         (_Centre.X - FCellSize > _ViewRect.Right) or
-         (_Centre.Y + _HexH      < _ViewRect.Top)   or
-         (_Centre.Y - _HexH      > _ViewRect.Bottom) then Continue;
-
-      if _Val = 1 then
-        begin
-          { Wall cell — solid dark fill }
-          DrawHex(ACanvas, _Centre, FCellSize * 0.97,
-                  MakeColor(TAlphaColors.Black, 150),
-                  MakeColor(TAlphaColors.Black, 80),
-                  0.4, True);
-        end else
-      if FWeights[_Idx] > 50 then
-        begin
-          { Weighted cell — colour matches GetWeightColor }
-          DrawHex(ACanvas, _Centre, FCellSize * 0.97,
-                  GetWeightColor(FWeights[_Idx]),
-                  MakeColor(TAlphaColors.Black, 30),
-                  0.3, True);
-        end;
+        if _Val = 1
+          then DrawHex(ACanvas, _Centre, FCellSize, MakeColor(TAlphaColors.Black, 150), MakeColor(TAlphaColors.Black, 80), 0.4, True)
+          else DrawHex(ACanvas, _Centre, FCellSize, GetWeightColor(FWeights[_Idx]),     MakeColor(TAlphaColors.Black, 30), 0.3, True);
+      end;
     end;
 end;
 
@@ -1328,7 +1456,7 @@ begin
   if FCellSize < 6 then Exit;                                                   // too small to draw meaningfully
 
   var _HexH    := FCellSize * C_Sqrt3_2;
-  var _ColStep := FCellSize * 0.75;
+  var _ColStep := FCellSize * C_ColStep;
 
   { Visible viewport — skip hexagons entirely outside the screen }
   var _ViewRect := RectF(0, 0, PaintBox_Map.Width, PaintBox_Map.Height);
@@ -1351,8 +1479,8 @@ begin
       { away from the viewport, the hex is certainly not visible.          }
       if (_Centre.X + FCellSize < _ViewRect.Left)  or
          (_Centre.X - FCellSize > _ViewRect.Right) or
-         (_Centre.Y + _HexH      < _ViewRect.Top)   or
-         (_Centre.Y - _HexH      > _ViewRect.Bottom) then Continue;
+         (_Centre.Y + _HexH     < _ViewRect.Top)   or
+         (_Centre.Y - _HexH     > _ViewRect.Bottom) then Continue;
 
       DrawHex(ACanvas, _Centre, FCellSize,
               0,                                      { fill — none here }
@@ -1362,8 +1490,28 @@ begin
     end;
 end;
 
+{ ============================================================================ }
+{  Draw Map and PAth Analysis -----------------------------------------------  }
+{ ============================================================================ }
 
-// Draw Map and PAth Analysis ----------------------------------------------- //
+procedure TFormMain.DrawLogo(const ACanvas: TCanvas);
+begin
+  if FBackgroundBitmap.IsEmpty then
+    begin
+      if Assigned(Form_Resources) then
+        FBackgroundBitmap.Assign(Form_Resources.Image_Logo.Bitmap)
+      else
+        Exit;
+    end;
+  AutoCropImage(FBackgroundBitmap);
+  CenterMap(True);
+  var _BgOpacity :=   IfThen(FIsHighlightMode, 0.3, 1.0);
+  var _MapWidthPx :=  FTileMap.Width *  FSetCellSize;
+  var _MapHeightPx := FTileMap.Height * FSetCellSize;
+  var _DestRect :=    TRectF.Create(FViewOffset.x, FViewOffset.y, FViewOffset.x + _MapWidthPx, FViewOffset.y + _MapHeightPx);
+
+  ACanvas.DrawBitmap(FBackgroundBitmap, FBackgroundBitmap.BoundsF, _DestRect, _BgOpacity);
+end;
 
 procedure TFormMain.PaintBox_MapPaint(Sender: TObject; Canvas: TCanvas);
 begin
@@ -1371,64 +1519,51 @@ begin
 
   if FLockMapFlag then
   begin
-    if FBackgroundBitmap.IsEmpty then
-      begin
-        if Assigned(Form_Resources) then
-          FBackgroundBitmap.Assign(Form_Resources.Image_Logo.Bitmap)
-        else
-          Exit;
-      end;
-    AutoCropImage(FBackgroundBitmap);
-    CenterMap(True);
-    //GetViewOffset();
-    var _BgOpacity :=   IfThen(FIsHighlightMode, 0.3, 1.0);
-    var _MapWidthPx :=  FTileMap.Width *  FCellSize;
-    var _MapHeightPx := FTileMap.Height * FCellSize;
-    var _DestRect :=    TRectF.Create(FViewOffset.x, FViewOffset.y, FViewOffset.x + _MapWidthPx, FViewOffset.y + _MapHeightPx);
-
-    Canvas.DrawBitmap(FBackgroundBitmap, FBackgroundBitmap.BoundsF, _DestRect, _BgOpacity);
-
+    DrawLogo(Canvas);
     Exit;
   end;
 
-  var _MapWidth: Single :=  0;
-  var _MapHeight: Single := 0;
-  HexMapPixelSize(_MapWidth, _MapHeight);
+  if FCellSize < 10 then Exit;
 
-  if Canvas.BeginScene then
+  var _State: TCanvasSaveState := Canvas.SaveState;
   try
-    var _State: TCanvasSaveState := Canvas.SaveState;
-    try
-      Canvas.IntersectClipRect(PaintBox_Map.LocalRect);
-      Canvas.Clear(FDefaultBackColor);
+    Canvas.IntersectClipRect(PaintBox_Map.LocalRect);
+    Canvas.Clear(FDefaultBackColor);
 
+    if not FBackgroundBitmap.IsEmpty then
+    begin
       var _BgOpacity := IfThen(FIsHighlightMode, 0.3, 1.0);
-      if not FBackgroundBitmap.IsEmpty then
-      begin
-        HexMapPixelSize(_MapWidth, _MapHeight);
-        var _MapRect := RectF(FViewOffset.X, FViewOffset.Y, FViewOffset.X + _MapWidth, FViewOffset.Y + _MapHeight);
-        Canvas.DrawBitmap(FBackgroundBitmap, FBackgroundBitmap.BoundsF, _MapRect, _BgOpacity);
-      end;
-
-      if FIsHighlightMode or CheckBox_Analysis.IsChecked then
-        DrawTilesEx(Canvas);
-
-      if CheckBox_ShowGrid.IsChecked then
-        DrawGridEx(Canvas);
-
-      if IsPathValid then
-        DrawSmoothPath(Canvas, CheckBox_SmoothLine.IsChecked);
-
-      DrawMarker(Canvas, 0, FStartPos);
-      DrawMarker(Canvas, 1, FFinishPos);
-    finally
-      Canvas.RestoreState(_State);  
+      var _MapWidth: Single :=  0;
+      var _MapHeight: Single := 0;
+      HexMapPixelSize(_MapWidth, _MapHeight);
+      var _MapRect := RectF(FViewOffset.X, FViewOffset.Y,
+                            FViewOffset.X +  _MapWidth,                         // ?
+                            FViewOffset.Y +  _MapHeight);                       // ?
+      Canvas.DrawBitmap(FBackgroundBitmap, FBackgroundBitmap.BoundsF, _MapRect, _BgOpacity);
     end;
+
+    if FIsHighlightMode or CheckBox_Analysis.IsChecked then
+      DrawTilesEx(Canvas);
+
+    if CheckBox_ShowGrid.IsChecked then
+      DrawGridEx(Canvas);
+
+    if IsPathValid then
+      DrawSmoothPath(Canvas, CheckBox_SmoothLine.IsChecked);
+
+    DrawMarker(Canvas, 0, FStartPos);
+    DrawMarker(Canvas, 1, FFinishPos);
   finally
-    Canvas.EndScene;
+    Canvas.RestoreState(_State);
   end;
 
-  UpdateStatusLabel();  
+  UpdateStatusLabel();
+end;
+
+procedure TFormMain.Rectangle_YellowClick(Sender: TObject);
+begin
+  FPathColor := C_PathColors[TRectangle(Sender).Tag];
+  PaintBox_Map.Repaint;
 end;
 
 // -------------------------------------------------------------------------- //
@@ -1436,7 +1571,7 @@ end;
 procedure TFormMain.DrawMarker(ACanvas: TCanvas; const APosFlag: Integer; const AGridPos: TPoint);
 begin
   var _SPos :=  GridToScreenF(AGridPos);
-  var _MSize := Max(14, FCellSize * 1.3);
+  var _MSize := Max(10, FCellSize * 1.5);
   var _R :=     RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
 
   if APosFlag = 0
@@ -1462,7 +1597,7 @@ begin
   if FCellSize > 10 then
   begin
     ACanvas.Fill.Color := AColor2;
-    ACanvas.Font.Size :=  Max(7, _MSize * 0.5);
+    ACanvas.Font.Size :=  Max(10, _MSize * 0.5);
     ACanvas.FillText(_Rect, ASymbol, False, 1.0, [], TTextAlign.Center, TTextAlign.Center);
   end;
 end;
@@ -1490,14 +1625,14 @@ begin
         begin
           _P1 :=  GridToScreenF(FCurrentPath.Points[_i]);
           _P2 :=  GridToScreenF(FCurrentPath.Points[_i + 1]);
-          _Mid := PointF((_P1.X + _P2.X) / 2, (_P1.Y + _P2.Y) / 2);     // Calculate the midpoint of two adjacent points and use them as control points for the curve
+          _Mid := PointF((_P1.X + _P2.X) / 2, (_P1.Y + _P2.Y) / 2);             // Calculate the midpoint of two adjacent points and use them as control points for the curve
           _PathData.QuadCurveTo(_P1, _Mid);                                     // Curve from the current position to the midpoint (P1 becomes the control point)
         end;
         _PathData.LineTo(GridToScreenF(FCurrentPath.Points[FCurrentPath.Count - 1]));                    // 3. Last point connection
 
         ACanvas.Stroke.Dash :=      TStrokeDash.Solid;
-        ACanvas.Stroke.Color :=     IfThen(FIsHighlightMode, TAlphaColors.Cyan, TAlphaColors.Yellow);    // 4. Draw a route to Canvas
-        ACanvas.Stroke.Thickness := Max(3, FCellSize / 8);//4);
+        ACanvas.Stroke.Color :=     IfThen(FIsHighlightMode, TAlphaColors.Cyan, FPathColor);             // 4. Draw a route to Canvas
+        ACanvas.Stroke.Thickness := Max(3, FCellSize * 0.3);
         ACanvas.Stroke.Cap :=       TStrokeCap.Round;
         ACanvas.Stroke.Join :=      TStrokeJoin.Round;
 
@@ -1508,15 +1643,20 @@ begin
     end
   else
     begin
+      var _ViewRect := PaintBox_Map.LocalRect;
+      _ViewRect.Inflate(FCellSize, FCellSize);
+
       ACanvas.Stroke.Dash :=  TStrokeDash.Solid;
-      ACanvas.Stroke.Color := IfThen(FIsHighlightMode, TAlphaColors.Cyan, TAlphaColors.Yellow);
-      ACanvas.Stroke.Thickness := Max(2, FCellSize * 0.2);
+      ACanvas.Stroke.Color := IfThen(FIsHighlightMode, TAlphaColors.Cyan, FPathColor);
+      ACanvas.Stroke.Thickness := Max(3, FCellSize * 0.3);
       ACanvas.Stroke.Cap := TStrokeCap.Round;
+
       for var _i := 0 to FCurrentPath.Count - 2 do
       begin
         var _P1 := GridToScreenF(FCurrentPath.Points[_i]);
         var _P2 := GridToScreenF(FCurrentPath.Points[_i+1]);
-        ACanvas.DrawLine(_P1, _P2, 1.0);
+        if _ViewRect.Contains(_P1) or _ViewRect.Contains(_P2) then
+          ACanvas.DrawLine(_P1, _P2, 1.0);
       end;
     end;
 end;
@@ -1571,7 +1711,7 @@ begin
       end;
     end;
 
-  UpdateStatusLabel();  
+  UpdateStatusLabel();
 end;
 
 procedure TFormMain.PaintBox_MapMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
@@ -1589,6 +1729,8 @@ begin
   FCurrGridX := _GX;
   FCurrGridY := _GY;
 
+  var _IsRefreshing: Boolean := False;
+  
   case FDragMode of
     TDragMode.StartPoint:
       if IsInGrid(_GX, _GY) then
@@ -1608,7 +1750,8 @@ begin
       begin
         PaintBox_Map.Cursor := TCursor(crDrag);
         FViewOffset := FViewOffset + (_NewPos - FLastMousePos);
-        ConstrainViewOffset;                                                    // Apply restrictions on movement
+        ConstrainViewOffset;  
+        _IsRefreshing :=True; 
         end;
     TDragMode.EditWeight:
       if IsInGrid(_GX, _GY) then
@@ -1622,7 +1765,7 @@ begin
 
   FLastMousePos := _NewPos;
   // ------------------------------------------------------------------------ //
-  PaintBox_Map.Repaint;
+  if _IsRefreshing then PaintBox_Map.Repaint;
   // ------------------------------------------------------------------------ //
   UpdateStatusLabel();
 end;
@@ -1636,20 +1779,26 @@ end;
 procedure TFormMain.PaintBox_MapMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
 begin
   if FLockMapFlag then Exit;
-
   var _OldCellSize := FCellSize;
   if WheelDelta > 0 then FCellSize := Min(FCellSize * 1.1, 400)
                     else FCellSize := Max(FCellSize * 0.9, 0.5);
 
-  FCellSize := EnsureRange(FCellSize, 1.0, 200.0);
+  if FCellSize < 10 then
+  begin
+    FCellSize := _OldCellSize;
+    Exit;
+  end;
+
+  FCellSize := EnsureRange(FCellSize, 1.0, 400.0);
   if _OldCellSize <> FCellSize then
   begin
     FViewOffset.X := FLastMousePos.X - (FLastMousePos.X - FViewOffset.X) * (FCellSize / _OldCellSize);
     FViewOffset.Y := FLastMousePos.Y - (FLastMousePos.Y - FViewOffset.Y) * (FCellSize / _OldCellSize);
+    
     ConstrainViewOffset;                                                        // Restrict it from leaving the screen even when zoomed in
     PaintBox_Map.Repaint;
   end;
-  
+
   UpdateStatusLabel();
   Handled := True;
 end;
@@ -1670,6 +1819,11 @@ begin
 
   FIsHighlightMode := False;
   PaintBox_Map.Repaint;
+end;
+
+procedure TFormMain.Button_ShortkeysClick(Sender: TObject);
+begin
+  ShowFixedMsg('Help', '');
 end;
 
 procedure TFormMain.Button_DefaultParamsClick(Sender: TObject);
@@ -1695,12 +1849,15 @@ end;
 
 procedure TFormMain.UpdateStatusLabel();
 begin
+  if FTileMap = nil then Exit;
+
   FZoomRatio := FCellSize / FSetCellSize;
   Label_Zoom.Text :=        Format('Zoom: %.0f%%  ', [FZoomRatio*100]);
   Label_ViewPos.Text :=     Format('Grid : %dx%d | Cell Size : %d | Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, Round(FCellSize),  FCurrentWeight, FCurrentWightFlag]);
   Label_Grids.Text :=       Format('[ Grids ] %d x %d | Map Weight %.2f', [FTileMap.Width, FTileMap.Height, FWeightMultiplier]);
   Label_SInfos.Text :=      Format('Nodes: %d | Distance: %.1f', [FCurrentPath.Count, FCurrentPath.Distance]);
-  Label_Performance.Text := Format('Performance: %d ms | Offset: (%.0f, %.0f)', [FPerformanceTick, FViewOffset.X, FViewOffset.Y]);
+  Label_Performance.Text := Format('Performance: %d ms | PoolCount %d MapSize %d MaxNodes %d Nodes: %d |Offset: (%.0f, %.0f)',
+                                   [FPerformanceTick, FTileMap.PoolCount, FTileMap.MapSize, FTileMap.MaxNodes, FCurrentPath.Count, FViewOffset.X, FViewOffset.Y]);
 end;
 
 procedure TFormMain.ComboBox_KindChange(Sender: TObject);
@@ -1717,6 +1874,7 @@ end;
 
 procedure TFormMain.TrackBar_TileSizeChange(Sender: TObject);
 begin
+  PaintBox_Map.Repaint;
   Label_GridCellSize.Text := 'Grid -Cell size (20 - 64) : '+Trunc(FSetCellSize).ToString;
 end;
 
@@ -1734,7 +1892,7 @@ begin
   FWeightMultiplier := TrackBar_Weight.Value / 10;
   Label_WeightScale.Text := Format('Map Weight Scale %.2f', [FWeightMultiplier]);
 
-  AnalyzeHeightMap;
+  AnalyzeHeightMap_ex;
   UpdatePath(True);
 end;
 
@@ -1847,6 +2005,12 @@ begin
   SaveScreenshot();
 end;
 
+procedure TFormMain.Action_ShowGridsExecute(Sender: TObject);
+begin
+  CheckBox_ShowGrid.IsChecked := not CheckBox_ShowGrid.IsChecked;
+  PaintBox_Map.Repaint;
+end;
+
 procedure TFormMain.ActionList1Update(Action: TBasicAction; var Handled: Boolean);
 begin
   MultiView_Background.Enabled := not FLockMapFlag;
@@ -1855,6 +2019,7 @@ begin
   Action_Options.Enabled :=       not FLockMapFlag;
   Action_ResetMap.Enabled :=      not FLockMapFlag;
   StatusBar_Map.Visible :=        not FLockMapFlag;
+
   TrackBar_CellWeight.Enabled :=  CheckBox_CellWeight.IsChecked;
 end;
 
@@ -1864,6 +2029,11 @@ begin
   // ------------------------------------------------------------------------ //
   PaintBox_Map.Repaint;
   // ------------------------------------------------------------------------ //
+end;
+
+procedure TFormMain.Action_HelpExecute(Sender: TObject);
+begin
+  ShowFixedMsg('Help', '');
 end;
 
 procedure TFormMain.Action_LoadMapExecute(Sender: TObject);
@@ -1879,12 +2049,6 @@ end;
 procedure TFormMain.Action_ResetMapExecute(Sender: TObject);
 begin
   InitializeGrid(True);
-  Exit;
-
-  { Reserved ... }
-  CenterMap;
-  AdjustMarkersToViewport;
-  UpdatePath(True);
 end;
 
 procedure TFormMain.AnimationFinishedEvent(Sender: TObject);
