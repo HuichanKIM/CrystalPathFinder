@@ -59,8 +59,8 @@ object FormMain: TFormMain
       end
       object Layout_Buttons: TLayout
         Align = Right
-        Position.X = 495.000000000000000000
-        Size.Width = 365.000000000000000000
+        Position.X = 475.000000000000000000
+        Size.Width = 385.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
@@ -72,7 +72,7 @@ object FormMain: TFormMain
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 185.000000000000000000
+          Position.X = 205.000000000000000000
           Position.Y = 8.000000000000000000
           Size.Width = 80.000000000000000000
           Size.Height = 28.000000000000000000
@@ -89,7 +89,7 @@ object FormMain: TFormMain
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 275.000000000000000000
+          Position.X = 295.000000000000000000
           Position.Y = 8.000000000000000000
           Size.Width = 80.000000000000000000
           Size.Height = 28.000000000000000000
@@ -108,7 +108,7 @@ object FormMain: TFormMain
           Margins.Bottom = 8.000000000000000000
           Position.X = 5.000000000000000000
           Position.Y = 8.000000000000000000
-          Size.Width = 80.000000000000000000
+          Size.Width = 100.000000000000000000
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 4
@@ -122,13 +122,13 @@ object FormMain: TFormMain
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 95.000000000000000000
+          Position.X = 115.000000000000000000
           Position.Y = 8.000000000000000000
           Size.Width = 80.000000000000000000
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 2
-          Text = 'Weight'
+          Text = #10024' Weight'
           ParentShowHint = False
           ShowHint = True
           OnMouseDown = Button_HeighlightMouseDown
@@ -139,7 +139,7 @@ object FormMain: TFormMain
         Align = Client
         StyledSettings = [Family, Size, Style]
         Margins.Right = 10.000000000000000000
-        Size.Width = 255.000000000000000000
+        Size.Width = 235.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         TextSettings.FontColor = claLime
@@ -178,8 +178,8 @@ object FormMain: TFormMain
           OnChange = ComboBox_KindChange
         end
         object Label_WeightScale: TLabel
-          Position.X = 20.000000000000000000
-          Position.Y = 84.000000000000000000
+          Position.X = 22.000000000000000000
+          Position.Y = 205.000000000000000000
           Size.Width = 181.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
@@ -191,9 +191,9 @@ object FormMain: TFormMain
           Max = 10.000000000000000000
           Min = 1.000000000000000000
           Orientation = Horizontal
-          Position.X = 20.000000000000000000
-          Position.Y = 110.000000000000000000
-          Size.Width = 181.000000000000000000
+          Position.X = 35.000000000000000000
+          Position.Y = 224.000000000000000000
+          Size.Width = 166.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 5
@@ -202,21 +202,16 @@ object FormMain: TFormMain
         end
         object CheckBoox_Parallel: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 140.000000000000000000
+          Position.Y = 80.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 32.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 2
           Text = 'Parallel Processing'
-          object CheckBox_JPS: TCheckBox
-            Position.Y = 33.000000000000000000
-            TabOrder = 19
-            Text = 'CheckBox_JPS'
-          end
         end
         object CheckBox_SmoothLine: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 253.000000000000000000
+          Position.Y = 267.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
@@ -226,17 +221,17 @@ object FormMain: TFormMain
         end
         object CheckBox_Analysis: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 285.000000000000000000
+          Position.Y = 299.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 8
-          Text = 'Show Weights [ Ctrl + A ]'
+          Text = 'Show Weights (Ctrl + A)'
           OnChange = CheckBox_AnalysisChange
         end
         object Label_GridCellSize: TLabel
           Position.X = 16.000000000000000000
-          Position.Y = 354.000000000000000000
+          Position.Y = 368.000000000000000000
           Size.Width = 177.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
@@ -248,9 +243,9 @@ object FormMain: TFormMain
           Max = 64.000000000000000000
           Min = 20.000000000000000000
           Orientation = Horizontal
-          Position.X = 16.000000000000000000
-          Position.Y = 379.000000000000000000
-          Size.Width = 177.000000000000000000
+          Position.X = 35.000000000000000000
+          Position.Y = 393.000000000000000000
+          Size.Width = 166.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 12
@@ -259,7 +254,7 @@ object FormMain: TFormMain
           OnTracking = TrackBar_TileSizeTracking
         end
         object Label2: TLabel
-          Position.X = 17.000000000000000000
+          Position.X = 16.000000000000000000
           Position.Y = 14.000000000000000000
           Size.Width = 119.000000000000000000
           Size.Height = 17.000000000000000000
@@ -267,18 +262,9 @@ object FormMain: TFormMain
           Text = '* Map Tile Kind *'
           TabOrder = 13
         end
-        object Label3: TLabel
-          Position.X = 20.000000000000000000
-          Position.Y = 229.000000000000000000
-          Size.Width = 181.000000000000000000
-          Size.Height = 17.000000000000000000
-          Size.PlatformDefault = False
-          Text = '------------------------------------'
-          TabOrder = 14
-        end
         object CheckBox_Calcurate: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 200.000000000000000000
+          Position.Y = 175.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
@@ -288,11 +274,11 @@ object FormMain: TFormMain
         end
         object CheckBox_CellWeight: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 318.000000000000000000
+          Position.Y = 332.000000000000000000
           Size.Width = 88.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 15
+          TabOrder = 14
           Text = 'Edit Weight -'
           OnChange = CheckBox_AnalysisChange
         end
@@ -301,7 +287,7 @@ object FormMain: TFormMain
           Max = 255.000000000000000000
           Orientation = Horizontal
           Position.X = 111.000000000000000000
-          Position.Y = 316.000000000000000000
+          Position.Y = 330.000000000000000000
           Size.Width = 90.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
@@ -313,32 +299,32 @@ object FormMain: TFormMain
         end
         object Button_DefaultParams: TButton
           Position.X = 140.000000000000000000
-          Position.Y = 515.000000000000000000
+          Position.Y = 529.000000000000000000
           Size.Width = 61.000000000000000000
           Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 17
+          TabOrder = 16
           Text = 'Default'
           OnClick = Button_DefaultParamsClick
         end
         object CheckBox_ShowGrid: TCheckBox
           Position.X = 16.000000000000000000
-          Position.Y = 419.000000000000000000
+          Position.Y = 433.000000000000000000
           Size.Width = 185.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 7
-          Text = 'Show Grids'
+          Text = 'Show Grids (Ctrl+G)'
           OnChange = CheckBox_AnalysisChange
         end
         object Button_Shortkeys: TButton
           Hint = 'Short Keys (Ctrl+F)'
           Position.X = 20.000000000000000000
-          Position.Y = 515.000000000000000000
+          Position.Y = 529.000000000000000000
           Size.Width = 82.000000000000000000
           Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 16
+          TabOrder = 15
           Text = 'Short Keys'
           ParentShowHint = False
           ShowHint = True
@@ -346,18 +332,18 @@ object FormMain: TFormMain
         end
         object Label1: TLabel
           Position.X = 16.000000000000000000
-          Position.Y = 462.000000000000000000
+          Position.Y = 476.000000000000000000
           Size.Width = 64.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = 'Path Color'
-          TabOrder = 18
+          TabOrder = 17
         end
         object Rectangle_Colors: TRectangle
           Fill.Color = claNull
           Opacity = 0.800000011920929000
           Position.X = 84.000000000000000000
-          Position.Y = 457.000000000000000000
+          Position.Y = 471.000000000000000000
           Size.Width = 117.000000000000000000
           Size.Height = 30.000000000000000000
           Size.PlatformDefault = False
@@ -403,10 +389,10 @@ object FormMain: TFormMain
             Size.PlatformDefault = False
             OnClick = Rectangle_YellowClick
           end
-          object Rectangle_Black: TRectangle
+          object Rectangle_Red: TRectangle
             Tag = 3
             Align = Left
-            Fill.Color = claBlack
+            Fill.Color = claRed
             Margins.Left = 2.000000000000000000
             Margins.Top = 2.000000000000000000
             Margins.Bottom = 2.000000000000000000
@@ -417,6 +403,40 @@ object FormMain: TFormMain
             Size.PlatformDefault = False
             OnClick = Rectangle_YellowClick
           end
+        end
+        object CheckBox_FilterBD: TCheckBox
+          Position.X = 16.000000000000000000
+          Position.Y = 145.000000000000000000
+          Size.Width = 185.000000000000000000
+          Size.Height = 19.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 18
+          Text = 'Filter - Buildings (Ctrl+F)'
+          OnChange = CheckBox_FilterBDChange
+        end
+        object Line1: TLine
+          LineType = Diagonal
+          Position.X = 16.000000000000000000
+          Position.Y = 514.000000000000000000
+          Size.Width = 185.000000000000000000
+          Size.Height = 1.000000000000000000
+          Size.PlatformDefault = False
+          Stroke.Color = claSilver
+        end
+        object Line2: TLine
+          LineType = Diagonal
+          Position.X = 16.000000000000000000
+          Position.Y = 255.000000000000000000
+          Size.Width = 185.000000000000000000
+          Size.Height = 1.000000000000000000
+          Size.PlatformDefault = False
+          Stroke.Color = claSilver
+        end
+        object CheckBox_JPS: TCheckBox
+          Position.X = 16.000000000000000000
+          Position.Y = 115.000000000000000000
+          TabOrder = 19
+          Text = 'CheckBox_JPS'
         end
       end
     end
@@ -34878,7 +34898,7 @@ object FormMain: TFormMain
       OnExecute = Action_AnalysisExecute
     end
     object Action_LoadMap: TAction
-      Text = 'Load Map'
+      Text = #55357#56534' Load Map'
       Hint = 'Load Map'
       ShortCut = 16461
       OnExecute = Action_LoadMapExecute
@@ -34889,12 +34909,12 @@ object FormMain: TFormMain
       ShortCut = 16456
     end
     object Action_Options: TAction
-      Text = 'Options'
+      Text = #55357#57056' Options'
       Hint = 'Options'
       ShortCut = 16463
     end
     object Action_ResetMap: TAction
-      Text = 'Reset'
+      Text = #55357#56960' Reset'
       Hint = 'Reset'
       ShortCut = 16466
       OnExecute = Action_ResetMapExecute
@@ -34906,8 +34926,18 @@ object FormMain: TFormMain
     end
     object Action_Help: TAction
       Text = 'Short Keys'
-      ShortCut = 16454
+      ShortCut = 16456
       OnExecute = Action_HelpExecute
+    end
+    object Action_CenterMap: TAction
+      Text = 'Action_CenterMap'
+      ShortCut = 16450
+      OnExecute = Action_CenterMapExecute
+    end
+    object Action_FIlterBuilds: TAction
+      Text = 'Action_FIlterBuilds'
+      ShortCut = 16454
+      OnExecute = Action_FIlterBuildsExecute
     end
   end
 end

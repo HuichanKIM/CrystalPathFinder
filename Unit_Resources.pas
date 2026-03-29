@@ -46,7 +46,7 @@ begin
   R_PosIconF := TBitmap.Create(Image_PosIcon_F.Bitmap.Width, Image_PosIcon_F.Bitmap.Height);
   R_PosIconF.Assign(Image_PosIcon_F.Bitmap);
 
-  R_PosIconRectF := TRectF.Create(0,0, R_PosIconS.Width, R_PosIconS.Height);
+  R_PosIconRectF := RectF(0,0, R_PosIconS.Width, R_PosIconS.Height);
 end;
 
 procedure TForm_Resources.FormDestroy(Sender: TObject);

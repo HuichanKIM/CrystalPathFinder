@@ -16,7 +16,9 @@ uses
   Winapi.Messages,
   FMX.Types,
   FMX.Graphics,
-  FMX.Controls,  FMX.StdCtrls,    FMX.Memo,
+  FMX.Controls,
+  FMX.StdCtrls,
+  FMX.Memo,
   FMX.Forms;
 
 const
@@ -48,15 +50,16 @@ type
   end;
 
 procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer);
+procedure ShowFixedMsg(const ATitle, AMsg: string);
 procedure RGBToHSV(const R, G, B: Byte; out H, S, V: Single);
 function MakeAlphaColor(Color: TAlphaColor; Alpha: Byte): TAlphaColor;
 function CheckPointF(const PF1, PF2: TPointF): Boolean;
 function WinGetTickCount(): Cardinal;
-function Clamp(const Value, Min, Max: Integer): Integer;
-function ClampD(const Value, Min, Max: Single): Single;
+function Clamp_I(const Value, Min, Max: Integer): Integer;
+function Clamp_D(const Value, Min, Max: Single): Single;
 function GetColorFromHSL(AHH, ASS, ALL: Single): TAlphaColor;
 function CaptureComponent(const AControl: TControl; const ASavefile: string): Boolean;
-procedure ShowFixedMsg(const ATitle, AMsg: string);
+
 function ReadAllText_Unicode(const AFilePath: string=''): string;
 function WriteAllText_Unicode(const AFilePath, AContents: string): Boolean;
 
@@ -72,12 +75,14 @@ const
 
                 *** Shortcut Keys ***
                 [ Ctrl+A   ] Show Cell Weights
+                [ Ctrl+B   ] Center Map
+                [ Ctrl+F   ] Filter Buildings
                 [ Ctrl+G   ] Show Grids
                 [ Ctrl+M   ] Load Map
                 [ Ctrl+O   ] Options
                 [ Ctrl+R   ] Reset
                 [ Ctrl+S   ] Screenshot
-                [ Ctrl+F   ] Help
+                [ Ctrl+H   ] Help
 
                 *** Mouse Actions ***
                 [ ML-Down  ] Drag / Pan
@@ -149,7 +154,7 @@ begin
   end;
 end;
 
-{ Global_TrimAppMemorySizeEx }
+{ Global_TrimAppMemorySizeEx ------------------------------------------------- }
 
 procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer);
 begin
@@ -197,21 +202,17 @@ begin
   MinC  := Min(RF, Min(GF, BF));
   Delta := MaxC - MinC;
   V     := MaxC;
-  if MaxC > 0 then S := Delta / MaxC else S := 0;
-  if Delta = 0 then
-    H := 0
-  else if MaxC = RF then
-    H := 60.0 * (GF - BF) / Delta
-  else if MaxC = GF then
-    H := 60.0 * ((BF - RF) / Delta + 2.0)
-  else
-    H := 60.0 * ((RF - GF) / Delta + 4.0);
+  if MaxC > 0  then S := Delta / MaxC else S := 0;
+  if Delta = 0 then H := 0  else
+  if MaxC = RF then H := 60.0 * (GF - BF) / Delta else
+  if MaxC = GF then H := 60.0 * ((BF - RF) / Delta + 2.0)
+               else H := 60.0 * ((RF - GF) / Delta + 4.0);
   if H < 0 then H := H + 360.0;
 end;
 
 { From Delphi 13 - System.UIConsts ------------------------------------------- }
 
-procedure RGB2HSL(const RGB: TAlphaColor; out H, S, L: Single);   { =Copy from RGBToHSL }
+procedure RGB2HSL(const RGB: TAlphaColor; out H, S, L: Single);   { = Copy from RGBToHSL }
 var
   R, G, B: Single;
   D, mx, mn: Single;
@@ -233,36 +234,31 @@ var
   end ;
 
 begin
-  R := TAlphaColorRec(RGB).R / $FF;
-  G := TAlphaColorRec(RGB).G / $FF;
-  B := TAlphaColorRec(RGB).B / $FF;
+  R  := TAlphaColorRec(RGB).R / $FF;
+  G  := TAlphaColorRec(RGB).G / $FF;
+  B  := TAlphaColorRec(RGB).B / $FF;
   mx := _Max(_Max(R, G), B);
   mn := _Min(_Min(R, G), B);
-  H := (mx + mn) / 2;
-  L := H;
-  S := H;
+  H  := (mx + mn) / 2;
+  L  := H;
+  S  := H;
+
   if (mx = mn) then
-  begin
-    S := 0;
-    H := 0;
-  end
+    begin
+      S := 0;
+      H := 0;
+    end
   else
-  begin
-    D := mx - mn;
-    if L > 0.5 then
-      S := D / (2 - mx - mn)
-    else
-      S := D / (mx + mn);
-    if (mx = R) then
-      H := (G - B) / D
-    else if (mx = G) then
-      H := (B - R) / D + 2
-    else
-      H := (R - G) / D + 4;
-    H := H / 6;
-    if H < 0 then
-      H := H + 1;
-  end;
+    begin
+      D := mx - mn;
+      if L > 0.5  then S := D / (2 - mx - mn)
+                  else S := D / (mx + mn);
+      if (mx = R) then H := (G - B) / D else
+      if (mx = G) then H := (B - R) / D + 2
+                  else H := (R - G) / D + 4;
+      H := H / 6;
+      if H < 0    then H := H + 1;
+    end;
 end;
 
 function RGBtoHSL(const AR, AG, AB: Byte; out H, S, L: Single): TAlphaCOlor;
@@ -326,14 +322,14 @@ begin
     else Result := AFalse;
 end;
 
-function Clamp(const Value, Min, Max: Integer): Integer;
+function Clamp_I(const Value, Min, Max: Integer): Integer;
 begin
   if Value < Min then Result := Min else
   if Value > Max then Result := Max
   else Result := Value;
 end;
 
-function ClampD(const Value, Min, Max: Single): Single;
+function Clamp_D(const Value, Min, Max: Single): Single;
 begin
   if Value < Min then Result := Min else
   if Value > Max then Result := Max
@@ -456,18 +452,18 @@ begin
   if _Hue < 0.33 then
     begin
       _R := 255;
-      _G := Clamp(Round(_Hue*765), 0, 255);
+      _G := Clamp_I(Round(_Hue*765), 0, 255);
       _B := 0;
     end else
   if _Hue < 0.66 then
     begin
       _R := 0;
       _G := 255;
-      _B := Clamp(Round((_Hue - 0.33) * 765), 0, 255);
+      _B := Clamp_I(Round((_Hue - 0.33) * 765), 0, 255);
     end
   else
     begin
-      _R := Clamp(Round((1 - _Hue) * 765), 0, 255);
+      _R := Clamp_I(Round((1 - _Hue) * 765), 0, 255);
       _G := 0;
       _B := 255;
     end;
