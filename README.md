@@ -35,7 +35,12 @@
 
 ![./Images/snapshot_2](./Images/snapshot_2.png)
 
-## 🛠 Tech Stack
+![./Images/newyork](./Images/newyork.png)
+
+![./Images/washington](./Images/washington.png)
+
+##
+ 🛠 Tech Stack
 
 *   **Language:** Delphi (Object Pascal)
 
