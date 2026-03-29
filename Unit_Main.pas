@@ -871,38 +871,38 @@ end;
   begin
     RGBToHSV(R, G, B, H, S, V);
 
-    { 1. 아주 어두운 영역 (그림자 등) -> Wall }
+    { 1. Very Dark Area (Shadow, etc.) -> Wall }
     if (V < 0.10) and (S < 0.20) then
     begin
       AWall := True; AWeight := 255; Exit;
     end;
 
-    { 2. 물 (파란색 계열) -> Wall }
+    { 2. Water (blue) -> Wall }
     if (H >= 170) and (H <= 245) and (S > 0.22) and (V > 0.12) then
     begin
       AWall := True; AWeight := 255; Exit;
     end;
 
-    { 3. [수정] 붉은색 지붕/건물 판정 }
-    { 도심에서 붉은색은 대개 지붕이므로 길(False)이 아닌 벽(True)으로 수정 }
+    { 3. [Amendment] Red roof/building decision }
+    { Red is usually a roof in the city center, so it is modified to be a wall (True) rather than a false }
     if ( (H <= 25) or (H >= 345) ) and (S > 0.15) and (V > 0.30) then
     begin
-      { 만약 특정 붉은색 선(경로)을 길로 써야 한다면 채도를 아주 높게 잡아야 하지만, }
-      { 일반적인 위성 지도의 붉은 지붕은 벽으로 보는 것이 안전합니다. }
+      { If you have to use a certain red line as a path, you have to set the saturation very high, but }
+      { Red roofs on common satellite maps are safe to see through walls. }
       AWall := True;
       AWeight := 255;
       Exit;
     end;
 
-    { 4. 밝은 무채색 (회색/흰색 지붕) -> Wall }
-    if (S < 0.20) and (V > 0.60) then // V 임계값을 0.65에서 0.60으로 약간 낮춤
+    { 4. Bright achromatic (Grey/White Roof) -> Wall }
+    if (S < 0.20) and (V > 0.60) then // Slightly lower the V threshold from 0.65 to 0.60
     begin
       AWall := True;
       AWeight := 255;
       Exit;
     end;
 
-    { 5. 녹지 (풀, 나무) -> Passable (높은 가중치) }
+    { 5. Green (full, wood) -> Passable }
     if (H >= 75) and (H <= 165) and (S > 0.15) then
     begin
       AWall := False;
@@ -910,7 +910,7 @@ end;
       Exit;
     end;
 
-    { 6. 흙, 나대지 -> Passable }
+    { 6. Soil, mud -> Passable }
     if (H >= 18) and (H <= 58) and (S > 0.14) and (V > 0.22) then
     begin
       AWall := False;
@@ -918,7 +918,7 @@ end;
       Exit;
     end;
 
-    { 7. 기본값 (도로 등 일반 지면) }
+    { 7. Default value (general ground such as road) }
     AWall   := False;
     AWeight := EnsureRange(Trunc((1.0 - V) * 80 + S * 50), 0, 200);
   end;
