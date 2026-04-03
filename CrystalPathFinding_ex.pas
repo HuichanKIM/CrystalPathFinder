@@ -163,7 +163,7 @@ type
     VisitedG:    TArray<Single>;
     VisitedGen:  TArray<UInt32>;
     VisitedSize: Integer;           // cached Length of VisitedG/Gen
-    Generation:  UInt32;           // per-context generation counter
+    Generation:  UInt32;            // per-context generation counter
 
     { Heap: FCount reset to 0 each search; FData raw pointer is reused }
     Heap:        TBinaryHeap;
@@ -173,19 +173,19 @@ type
 
   { for Improved Heuristic Algorythem ------------------------------------- }
   TTileMapHexOffset = (
-    hoOddR,         // Odd-r  : odd rows are shifted right by +0.5 (default)
-    hoEvenR         // Even-r : even rows are shifted right by +0.5
+    hoOddR,                         // Odd-r  : odd rows are shifted right by +0.5 (default)
+    hoEvenR                         // Even-r : even rows are shifted right by +0.5
   );
-    
+
   { ------------------------------------------------------------------ }
   { TTileMap - Main pathfinding class                                  }
   { ------------------------------------------------------------------ }
   ETileMapHexOffsetError = class(Exception);
-    
+
   TTileMap = class
   private
-    FWidth:        Integer;
-    FHeight:       Integer;
+    FColumns:      Integer;
+    FRows:         Integer;
     FKind:         TTileMapKind;
     FData:         PByte;
     FDataLock:     TCriticalSection;
@@ -200,24 +200,24 @@ type
     FIdleList:     TArray<Integer>;
     FIdleTop:      Integer;
     FContextLock:  TCriticalSection;
-    
+
     { Improved Heuristic Algorythem ------------------------------------- }
-    FHexOffset : TTileMapHexOffset; // Offset orientation for hexagonal tiles  
+    FHexOffset : TTileMapHexOffset; // Offset orientation for hexagonal tiles
 
     { for Debug ... }
     FMapSize:   Integer;
     FMaxNodes:  Integer;
     FPoolCount: Integer;
 
-    procedure SetWidth(const Value: Integer);
-    procedure SetHeight(const Value: Integer);
+    procedure SetColumns(const Value: Integer);
+    procedure SetRows(const Value: Integer);
     function  GetDataSize: NativeUInt; inline;
 
     function  IsValid(const AP: TPoint): Boolean; inline;
-    procedure BuildExcludeBitmap(const AExcludes: TArray<TPoint>; out ABitmap: TArray<Boolean>; AWidth, AHeight, AMapSize: Integer);
-    procedure SnapshotMapState(out AData: PByte; out AWidth, AHeight: Integer);
+    procedure BuildExcludeTiles(const AExcludes: TArray<TPoint>; out AExcTiles: TArray<Boolean>; AColumns, ARows, AMapSize: Integer);
+    procedure SnapshotMapState(out AData: PByte; out AColumns, ARows: Integer);
     function  GetOptimalPoolSize(const AMapSize: Integer): Integer;
-
+    { For Parellel For when many StartPoint ---------------------------------- }
     { Borrow / return a context }
     function  AcquireContext: PThreadContext;
     procedure ReleaseContext(ACtx: PThreadContext);
@@ -225,11 +225,12 @@ type
     procedure PrepareContext(ACtx: PThreadContext; AMapSize: Integer);
     function  GetHeuristic(const AP1, AP2: TPoint): Single; inline;
     { Improved Heuristic Algorythem ------------------------------------- }
-    function  GetHeuristic_ex(const AP1, AP2: TPoint): Single; 
+    function  GetHeuristic_ex(const AP1, AP2: TPoint): Single;
+    procedure ArgumentTest(const AColumns, ARows: Integer; AKind: TTileMapKind);
   protected
     function DoFindPath(const AParams: TTileMapParams): TTileMapPath; virtual;
   public
-    constructor Create(AWidth, AHeight: Integer; 
+    constructor Create(AColumns, ARows: Integer;
                        AKind: TTileMapKind = TTileMapKind.mkSimple;
                        const AHexOffset: TTileMapHexOffset = TTileMapHexOffset.hoOddR);
     destructor  Destroy; override;
@@ -237,20 +238,13 @@ type
     function  FindPath(const AStart, AFinish: TPoint;
                        const AWeights:  PTileMapWeights = nil;
                        const AExcludes: TArray<TPoint>  = nil): TTileMapPath;
-    function  FindPathParallel(const AStarts: array of TPoint;
-                               const AFinish: TPoint;
-                               const AWeights:  PTileMapWeights = nil;
-                               const AExcludes: TArray<TPoint>  = nil): TTileMapPath;
-    function  FindPathJPS(const AStart, AFinish: TPoint;
-                          const AWeights:  PTileMapWeights = nil;
-                          const AExcludes: TArray<TPoint>  = nil): TTileMapPath;
-    property Width:     Integer       read FWidth     write SetWidth;
-    property Height:    Integer       read FHeight    write SetHeight;
+    property Columns:   Integer       read FColumns   write SetColumns;
+    property Rows:      Integer       read FRows      write SetRows;
     property Kind:      TTileMapKind  read FKind;
     property Data:      PByte         read FData;
-    // Read-only after construction — prevents post-construction drift
-    property HexOffset : TTileMapHexOffset 
-                                      read FHexOffset write FHexOffset;    
+    { Read-only after construction — prevents post-construction drift }
+    property HexOffset : TTileMapHexOffset
+                                      read FHexOffset write FHexOffset;
     { for Debug ... }
     property MapSize:   Integer       read FMapSize;
     property MaxNodes:  Integer       read FMaxNodes;
@@ -268,8 +262,8 @@ const
   //         but low precision can degrade path quality, especially over long routes
   //         where small errors accumulate across many steps.
   // ──────────────────────────────────────────────────────────
-  SQRT2_MINUS1: Double = 0.41421356237309504;
-
+  C_SQRT2        = 1.4142135623730950488016887242097;
+  C_SQRT2_MINUS1 = 0.41421356237309504;
   // ──────────────────────────────────────────────────────────
   // Tie-breaking multiplier
   //   When many nodes share the same f(n), the number of explored nodes
@@ -285,6 +279,7 @@ const
   //   Effect: on large maps (512x512+), explored node count can drop 2-5x.
   // ──────────────────────────────────────────────────────────
   TIE_BREAK_FACTOR: Double = 1.001;
+
 
 { ============================================================================ }
 { TTileMapPath                                                                 }
@@ -370,25 +365,23 @@ begin
 end;
 
 procedure TBinaryHeap.SiftUp(Index: Integer);
-var
-  _ParentIdx: Integer;
 begin
-  var CurrentNode: PPathNode := FData[Index];
+  var _CurrentNode: PPathNode := FData[Index];
+  var _ParentIdx := 0;
   while Index > 0 do
   begin
     _ParentIdx := (Index - 1) shr 1;
-    if CurrentNode^.F >= FData[_ParentIdx]^.F then Break;
+    if _CurrentNode^.F >= FData[_ParentIdx]^.F then Break;
     FData[Index] := FData[_ParentIdx];
     Index := _ParentIdx;
   end;
-  FData[Index] := CurrentNode;
+  FData[Index] := _CurrentNode;
 end;
 
 procedure TBinaryHeap.SiftDown(Index: Integer);
-var
-  _ChildIdx: Integer;
 begin
-  var CurrentNode: PPathNode := FData[Index];
+  var _CurrentNode: PPathNode := FData[Index];
+  var _ChildIdx := 0;
   while True do
   begin
     _ChildIdx := (Index shl 1) + 1;
@@ -396,25 +389,52 @@ begin
     if (_ChildIdx + 1 < FCount) and
        (FData[_ChildIdx + 1]^.F < FData[_ChildIdx]^.F) then
       Inc(_ChildIdx);
-    if CurrentNode^.F <= FData[_ChildIdx]^.F then Break;
+    if _CurrentNode^.F <= FData[_ChildIdx]^.F then Break;
     FData[Index] := FData[_ChildIdx];
     Index := _ChildIdx;
   end;
-  FData[Index] := CurrentNode;
+  FData[Index] := _CurrentNode;
 end;
 
 { ============================================================================ }
 { TTileMap                                                                     }
 { ============================================================================ }
 
-constructor TTileMap.Create(AWidth, AHeight: Integer; AKind: TTileMapKind; 
+{ Arguments Test ------------------------------------------------------------- }
+
+procedure TTileMap.ArgumentTest(const AColumns, ARows: Integer; AKind: TTileMapKind);
+const
+  CELLCOUNT_LIMIT = 16 * 1000 * 1000 { Length limit 6666667 };
+begin
+  var _CellCount := NativeUInt(AColumns) * NativeUInt(ARows);
+  var _mwsgformat: string;
+  if (AColumns <= 1) or (ARows <= 1) then  // ToDo: 1 line map
+   begin
+     _mwsgformat := Format('Incorrect map size: %dx%d', [AColumns, ARows]);
+     raise ECrystalPathFinding.Create(_mwsgformat);
+   end;
+  if (_CellCount > CELLCOUNT_LIMIT) then
+    begin
+      _mwsgformat := Format('Too large map size %dx%d, cell count limit is %d', [AColumns, ARows, CELLCOUNT_LIMIT]);
+      raise ECrystalPathFinding.Create(_mwsgformat);
+    end;
+  if (Ord(AKind) > Ord(High(TTileMapKind))) then
+    begin
+      _mwsgformat := Format('Incorrect map kind: %d, high value mkHexagonal is %d', [Ord(AKind), Ord(High(TTileMapKind))]);
+      raise ECrystalPathFinding.Create(_mwsgformat);
+    end;
+end;
+
+constructor TTileMap.Create(AColumns, ARows: Integer; AKind: TTileMapKind;
                             const AHexOffset: TTileMapHexOffset);
 begin
   inherited Create;
 
-  FWidth  := AWidth;
-  FHeight := AHeight;
-  FKind   := AKind;
+  ArgumentTest(AColumns, ARows, AKind);
+
+  FColumns :=   AColumns;
+  FRows :=      ARows;
+  FKind :=      AKind;
   FHexOffset := AHexOffset;
 
   FDataLock    := TCriticalSection.Create;
@@ -422,21 +442,20 @@ begin
 
   GetMem(FData, GetDataSize);
   FillChar(FData^, GetDataSize, 0);
-
   { -------------------------------------------------------------------- }
   {  Initialise the context pool.                                        }
   {  We allocate ProcessorCount contexts upfront.                        }
   {  TParallel.For also uses ProcessorCount as its parallelism ceiling,  }
   {  so this count guarantees a context is always available immediately. }
   { -------------------------------------------------------------------- }
-  var _CtxCount     := Max(TThread.ProcessorCount, 1);
-  var _InitPoolSize := GetOptimalPoolSize(AWidth * AHeight);
+  var _CtxCount     := 1;// Reserved : Max(TThread.ProcessorCount, 1);
+  var _InitPoolSize := GetOptimalPoolSize(AColumns * ARows);
 
   SetLength(FContexts, _CtxCount);
   SetLength(FIdleList, _CtxCount);
   FIdleTop := _CtxCount - 1;
 
-  for var _i := 0 to _CtxCount - 1 do
+  for var _i := 0 to _CtxCount - 1 do  // Only Once Now ...
   begin
     { Pre-allocate NodePool }
     SetLength(FContexts[_i].NodePool,   _InitPoolSize);
@@ -445,10 +464,10 @@ begin
     FContexts[_i].NodeCount := 0;
 
     { Pre-allocate VisitedG / VisitedGen }
-    SetLength(FContexts[_i].VisitedG,   AWidth * AHeight);
-    SetLength(FContexts[_i].VisitedGen, AWidth * AHeight);
-    FillChar(FContexts[_i].VisitedGen[0], SizeOf(UInt32) * AWidth * AHeight, 0);
-    FContexts[_i].VisitedSize := AWidth * AHeight;
+    SetLength(FContexts[_i].VisitedG,   AColumns * ARows);
+    SetLength(FContexts[_i].VisitedGen, AColumns * ARows);
+    FillChar(FContexts[_i].VisitedGen[0], SizeOf(UInt32) * AColumns * ARows, 0);
+    FContexts[_i].VisitedSize := AColumns * ARows;
     FContexts[_i].Generation  := 0;
 
     { Heap will be initialised on the first PrepareContext call }
@@ -584,13 +603,13 @@ end;
 
 function TTileMap.GetDataSize: NativeUInt;
 begin
-  Result := NativeUInt(FWidth) * NativeUInt(FHeight);
+  Result := NativeUInt(FColumns) * NativeUInt(FRows);
 end;
 
 function TTileMap.IsValid(const AP: TPoint): Boolean;
 begin
-  Result := (AP.X >= 0) and (AP.X < FWidth) and
-            (AP.Y >= 0) and (AP.Y < FHeight);
+  Result := (AP.X >= 0) and (AP.X < FColumns) and
+            (AP.Y >= 0) and (AP.Y < FRows);
 end;
 
 function TTileMap.GetOptimalPoolSize(const AMapSize: Integer): Integer;
@@ -626,21 +645,10 @@ begin
   end;
 end;
 
-// Modified by ichin 2026-03-29 일 오후 6:55:18
-
 function TTileMap.GetHeuristic_ex(const AP1, AP2: TPoint): Single;
-var
-  _DX, _DY: Integer;
-
-  // ── mkHexagonal local variables ──
-  _CubeX1, _CubeZ1 : Integer;
-  _CubeX2, _CubeZ2 : Integer;
-  _DiffX,  _DiffZ  : Integer;
-  _RowShift1, _RowShift2: Integer;
-
 begin
-  _DX := Abs(AP1.X - AP2.X);
-  _DY := Abs(AP1.Y - AP2.Y);
+  var _DX := Abs(AP1.X - AP2.X);
+  var _DY := Abs(AP1.Y - AP2.Y);
 
   case FKind of
 
@@ -668,7 +676,7 @@ begin
     // ────────────────────────────────────────────────────────
     TTileMapKind.mkDiagonal,
     TTileMapKind.mkDiagonalEx:
-      Result := Max(_DX, _DY) + SQRT2_MINUS1 * Min(_DX, _DY);
+      Result := Max(_DX, _DY) + C_SQRT2_MINUS1 * Min(_DX, _DY);
 
     // ────────────────────────────────────────────────────────
     // mkHexagonal : Hex Distance via Cube Coordinate Conversion
@@ -703,11 +711,9 @@ begin
         // Guard clause — fail loudly on unrecognized offset type.
         // Prefer an explicit exception over a silent wrong-result fallback.
         if not (FHexOffset in [TTileMapHexOffset.hoOddR, TTileMapHexOffset.hoEvenR]) then
-          raise ETileMapHexOffsetError.CreateFmt(
-            'TTileMap.GetHeuristic: unsupported HexOffset value (%d). ' +
-            'Expected hoOddR or hoEvenR.',
-            [Ord(FHexOffset)]);
+          raise ETileMapHexOffsetError.CreateFmt('TTileMap.GetHeuristic: unsupported HexOffset value (%d). Expected hoOddR or hoEvenR.', [Ord(FHexOffset)]);
 
+        var _RowShift1, _RowShift2: Integer;
         case FHexOffset of
           // Odd-r : odd rows shifted right
           //   RowShift = (Y - (Y mod 2)) / 2
@@ -737,20 +743,19 @@ begin
         //   Cube X = Offset X - RowShift
         //   Cube Z = Offset Y  (unchanged)
         //   Cube Y = -Cube X - Cube Z  (derived, not stored)
-        _CubeX1 := AP1.X - _RowShift1;
-        _CubeZ1 := AP1.Y;
-        _CubeX2 := AP2.X - _RowShift2;
-        _CubeZ2 := AP2.Y;
+        var _CubeX1 := AP1.X - _RowShift1;
+        var _CubeZ1 := AP1.Y;
+        var _CubeX2 := AP2.X - _RowShift2;
+        var _CubeZ2 := AP2.Y;
 
         // Compute hex distance without CubeY variable (using Y = -X - Z)
         //   |dx| + |dy| + |dz|
         //   = |DiffX| + |DiffZ| + |DiffX + DiffZ|
-        _DiffX := _CubeX1 - _CubeX2;
-        _DiffZ := _CubeZ1 - _CubeZ2;
+        var _DiffX := _CubeX1 - _CubeX2;
+        var _DiffZ := _CubeZ1 - _CubeZ2;
 
         Result := (Abs(_DiffX) + Abs(_DiffZ) + Abs(_DiffX + _DiffZ)) / 2.0;
       end;
-
   else
     // ────────────────────────────────────────────────────────
     // else : fallback for undefined or custom tile modes
@@ -768,7 +773,7 @@ begin
     // ────────────────────────────────────────────────────────
 
     // ▶ Recommended: Octile Distance for 8-directional grid movement
-    Result := Max(_DX, _DY) + SQRT2_MINUS1 * Min(_DX, _DY);
+    Result := Max(_DX, _DY) + C_SQRT2_MINUS1 * Min(_DX, _DY);
 
     // ▶ Alternative: Euclidean Distance for continuous-space / free-angle movement
     // Result := Sqrt(_DX * _DX + _DY * _DY);
@@ -787,47 +792,47 @@ begin
   Result := Result * TIE_BREAK_FACTOR;
 end;
 
-procedure TTileMap.BuildExcludeBitmap(const AExcludes: TArray<TPoint>;
-                                      out ABitmap: TArray<Boolean>;
-                                      AWidth, AHeight, AMapSize: Integer);
+procedure TTileMap.BuildExcludeTiles(const AExcludes: TArray<TPoint>;
+                                      out AExcTiles: TArray<Boolean>;
+                                      AColumns, ARows, AMapSize: Integer);
 begin
   if Length(AExcludes) = 0 then
   begin
-    ABitmap := nil;
+    AExcTiles := nil;
     Exit;
   end;
-  
-  SetLength(ABitmap, AMapSize);
-  FillChar(ABitmap[0], AMapSize * SizeOf(Boolean), 0);
+
+  SetLength(AExcTiles, AMapSize);
+  FillChar(AExcTiles[0], AMapSize * SizeOf(Boolean), 0);
   for var _i := 0 to High(AExcludes) do
   begin
     var _P := AExcludes[_i];
-    if (_P.X >= 0) and (_P.X < AWidth) and
-       (_P.Y >= 0) and (_P.Y < AHeight) then
-      ABitmap[_P.Y * AWidth + _P.X] := True;
+    if (_P.X >= 0) and (_P.X < AColumns) and
+       (_P.Y >= 0) and (_P.Y < ARows) then
+      AExcTiles[_P.Y * AColumns + _P.X] := True;
   end;
 end;
 
 procedure TTileMap.SnapshotMapState(out AData: PByte;
-                                    out AWidth, AHeight: Integer);
+                                    out AColumns, ARows: Integer);
 begin
   FDataLock.Enter;
   try
-    AData   := FData;
-    AWidth  := FWidth;
-    AHeight := FHeight;
+    AData    := FData;
+    AColumns := FColumns;
+    ARows    := FRows;
   finally
     FDataLock.Leave;
   end;
 end;
 
-procedure TTileMap.SetWidth(const Value: Integer);
+procedure TTileMap.SetColumns(const Value: Integer);
 begin
   FDataLock.Enter;
   try
-    if FWidth <> Value then
+    if FColumns <> Value then
     begin
-      FWidth := Value;
+      FColumns := Value;
       ReallocMem(FData, GetDataSize);
       FillChar(FData^, GetDataSize, 0);
     end;
@@ -836,13 +841,13 @@ begin
   end;
 end;
 
-procedure TTileMap.SetHeight(const Value: Integer);
+procedure TTileMap.SetRows(const Value: Integer);
 begin
   FDataLock.Enter;
   try
-    if FHeight <> Value then
+    if FRows <> Value then
     begin
-      FHeight := Value;
+      FRows := Value;
       ReallocMem(FData, GetDataSize);
       FillChar(FData^, GetDataSize, 0);
     end;
@@ -865,85 +870,8 @@ begin
   _Params.Finish   := AFinish;
   _Params.Weights  := AWeights;
   _Params.Excludes := AExcludes;
-  
+
   Result := DoFindPath(_Params);
-end;
-
-function TTileMap.FindPathParallel(const AStarts: array of TPoint;
-                                   const AFinish: TPoint;
-                                   const AWeights:  PTileMapWeights;
-                                   const AExcludes: TArray<TPoint>): TTileMapPath;
-begin
-  if Length(AStarts) = 0 then Exit(Default(TTileMapPath));
-
-  var _StartsCopy: TArray<TPoint>;
-  SetLength(_StartsCopy, Length(AStarts));
-  for var _j := 0 to High(AStarts) do
-    _StartsCopy[_j] := AStarts[_j];
-
-  var _Paths: TArray<TTileMapPath>;
-  SetLength(_Paths, Length(_StartsCopy));
-  FillChar(_Paths[0], Length(_Paths) * SizeOf(TTileMapPath), 0);
-
-  var _BestFound := False;
-  var _BestLock  := TCriticalSection.Create;
-  try
-    TParallel.For(0, High(_StartsCopy),
-      procedure(Index: Integer)
-      var
-        _Params: TTileMapParams;
-      begin
-        _BestLock.Enter;
-        try
-          if _BestFound then Exit;
-        finally
-          _BestLock.Leave;
-        end;
-
-        _Params.Starts   := [_StartsCopy[Index]];
-        _Params.Finish   := AFinish;
-        _Params.Weights  := AWeights;
-        _Params.Excludes := AExcludes;
-        _Paths[Index]    := DoFindPath(_Params);
-
-        if _Paths[Index].Count > 0 then
-        begin
-          _BestLock.Enter;
-          try
-            _BestFound := True;
-          finally
-            _BestLock.Leave;
-          end;
-        end;
-      end);
-
-    var _BestIdx := -1;
-    var _MinDist := MaxDouble;
-    for var _j := 0 to High(_Paths) do
-      if (_Paths[_j].Count > 0) and (_Paths[_j].Distance < _MinDist) then
-      begin
-        _MinDist := _Paths[_j].Distance;
-        _BestIdx := _j;
-      end;
-
-    if _BestIdx <> -1 then
-    begin
-      Result := _Paths[_BestIdx];
-      for var _k := 0 to High(_Paths) do
-        if _k <> _BestIdx then _Paths[_k].Release;
-    end
-    else
-      Result := Default(TTileMapPath);
-  finally
-    _BestLock.Free;
-  end;
-end;
-
-function TTileMap.FindPathJPS(const AStart, AFinish: TPoint;
-                              const AWeights:  PTileMapWeights;
-                              const AExcludes: TArray<TPoint>): TTileMapPath;
-begin
-  Result := FindPath(AStart, AFinish, AWeights, AExcludes);
 end;
 
 { ============================================================================ }
@@ -991,9 +919,14 @@ begin
     var _VisitedGen: PUInt32 := @_Ctx^.VisitedGen[0];
     var _MyGen: UInt32       := _Ctx^.Generation;
 
-    var _ExcludeBitmap: TArray<Boolean>;
-    BuildExcludeBitmap(AParams.Excludes, _ExcludeBitmap, _SnapWidth, _SnapHeight, _MapSize);
-    var _HasExcludes := Length(_ExcludeBitmap) > 0;
+    var _HasExcludes := False;
+    var _ExcludeTiles: TArray<Boolean>;
+    if AParams.Excludes <> nil then
+    begin
+      BuildExcludeTiles(AParams.Excludes, _ExcludeTiles, _SnapWidth, _SnapHeight, _MapSize);
+      _HasExcludes := Length(_ExcludeTiles) > 0;
+    end;
+
     var _MaxNodes    := _Ctx^.NodeCap;
     var _PoolCount   := 0;
 
@@ -1018,7 +951,7 @@ begin
     var _CellIdx:  Integer   := 0;
 
     { Seed start nodes }
-    for var _j := 0 to High(AParams.Starts) do
+    for var _j := 0 to High(AParams.Starts) do  // Real count = 1 ...
     begin
       if not IsValid(AParams.Starts[_j]) then Continue;
       _CellIdx := AParams.Starts[_j].Y * _SnapWidth + AParams.Starts[_j].X;
@@ -1093,7 +1026,7 @@ begin
 
         _CellIdx := _NextPos.Y * _SnapWidth + _NextPos.X;
         if (_SnapData + _CellIdx)^ = 1 then Continue;
-        if _HasExcludes and _ExcludeBitmap[_CellIdx] then Continue;
+        if _HasExcludes and _ExcludeTiles[_CellIdx] then Continue;
 
         _StepCost := 1.0;
         if AParams.Weights <> nil then
@@ -1137,7 +1070,7 @@ begin
 
         _CellIdx := _NextPos.Y * _SnapWidth + _NextPos.X;
         if (_SnapData + _CellIdx)^ = 1 then Continue;
-        if _HasExcludes and _ExcludeBitmap[_CellIdx] then Continue;
+        if _HasExcludes and _ExcludeTiles[_CellIdx] then Continue;
 
         if _IsDiagonalEx then
         begin
@@ -1150,7 +1083,7 @@ begin
                                _SnapWidth, _SnapData) then Continue;
         end;
 
-        _StepCost := 1.41421356237;
+        _StepCost := C_SQRT2;
         if AParams.Weights <> nil then
           _StepCost := _StepCost + AParams.Weights^[_CellIdx] * 0.1;
 
@@ -1194,5 +1127,10 @@ begin
     ReleaseContext(_Ctx);
   end;
 end;
+
+initialization
+  // System.GetMemoryManager(V_MemoryManager);
+
+finalization
 
 end.

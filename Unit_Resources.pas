@@ -19,8 +19,10 @@ type
   TForm_Resources = class(TForm)
     Image_PosIcon_S: TImage;
     Image_PosIcon_F: TImage;
-    Image_Logo: TImage;
+    Image_Logo0: TImage;
     Image1: TImage;
+    Path1: TPath;
+    Image_Logo1: TImage;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
@@ -54,8 +56,5 @@ begin
   R_PosIconS.Free;
   R_PosIconF.Free;
 end;
-
-// ==================================================
-// ==================================================
 
 end.
