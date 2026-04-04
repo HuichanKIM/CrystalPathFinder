@@ -8,6 +8,8 @@ object FormMain: TFormMain
   Fill.Kind = Solid
   Position = ScreenCenter
   StyleBook = StyleBook1
+  Constraints.MinHeight = 800.000000000000000000
+  Constraints.MinWidth = 800.000000000000000000
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -306,7 +308,7 @@ object FormMain: TFormMain
           Size.Width = 177.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
-          Text = #55356#57281' PATH Tile Size  (20 - 64)'
+          Text = #55356#57281' MAP Tile Size  (Default)'
           TabOrder = 9
         end
         object TrackBar_TileSize: TTrackBar
@@ -319,7 +321,7 @@ object FormMain: TFormMain
           Size.Width = 166.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 11
+          TabOrder = 12
           Value = 32.000000000000000000
           OnChange = TrackBar_TileSizeChange
           OnTracking = TrackBar_TileSizeTracking
@@ -331,7 +333,7 @@ object FormMain: TFormMain
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = #9881#65039' MAP Tile Kind'
-          TabOrder = 12
+          TabOrder = 13
         end
         object CheckBox_AddTerrain: TCheckBox
           Position.X = 16.000000000000000000
@@ -349,7 +351,7 @@ object FormMain: TFormMain
           Size.Width = 88.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 13
+          TabOrder = 14
           Text = 'Edit WEIGHT -'
           OnChange = CheckBox_WeightsChange
         end
@@ -362,7 +364,7 @@ object FormMain: TFormMain
           Size.Width = 90.000000000000000000
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 10
+          TabOrder = 11
           Value = 100.000000000000000000
           ParentShowHint = False
           ShowHint = True
@@ -374,7 +376,7 @@ object FormMain: TFormMain
           Size.Width = 81.000000000000000000
           Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 15
+          TabOrder = 16
           Text = #55356#57312' Default'
           OnClick = Button_DefaultParamsClick
         end
@@ -398,7 +400,7 @@ object FormMain: TFormMain
           Size.Width = 55.000000000000000000
           Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 14
+          TabOrder = 15
           Text = #10067'Help'
           ParentShowHint = False
           ShowHint = True
@@ -411,7 +413,7 @@ object FormMain: TFormMain
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
           Text = #55356#57256' PATH'
-          TabOrder = 16
+          TabOrder = 17
         end
         object Rectangle_PathColors: TRectangle
           Fill.Color = claNull
@@ -498,7 +500,7 @@ object FormMain: TFormMain
           Size.Width = 96.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 17
+          TabOrder = 18
           Text = #55357#56522' FILTER'
           OnChange = CheckBox_FilterBDChange
         end
@@ -526,7 +528,7 @@ object FormMain: TFormMain
           Size.Width = 81.000000000000000000
           Size.Height = 23.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 20
+          TabOrder = 21
           object RadioButton_Filter0: TRadioButton
             IsChecked = True
             Position.X = 3.000000000000000000
@@ -556,7 +558,7 @@ object FormMain: TFormMain
           Size.Width = 72.000000000000000000
           Size.Height = 19.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 21
+          TabOrder = 22
           Text = 'HeatMap'
           OnChange = CheckBox_WeightsChange
         end
@@ -636,6 +638,31 @@ object FormMain: TFormMain
           Size.Height = 1.000000000000000000
           Size.PlatformDefault = False
           Stroke.Color = claSilver
+        end
+        object TrackBar_WallValue: TTrackBar
+          CanParentFocus = True
+          Max = 8.000000000000000000
+          Min = 1.000000000000000000
+          Orientation = Horizontal
+          Position.X = 130.000000000000000000
+          Position.Y = 107.000000000000000000
+          Size.Width = 73.000000000000000000
+          Size.Height = 24.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 10
+          Value = 3.000000000000000000
+          ParentShowHint = False
+          ShowHint = True
+          OnChange = TrackBar_WallValueChange
+        end
+        object Label_WallOffset: TLabel
+          Position.X = 17.000000000000000000
+          Position.Y = 110.000000000000000000
+          Size.Width = 107.000000000000000000
+          Size.Height = 17.000000000000000000
+          Size.PlatformDefault = False
+          Text = #55357#56826' Refine WALL 3'
+          TabOrder = 23
         end
       end
     end

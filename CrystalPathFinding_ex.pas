@@ -65,7 +65,7 @@
 {$SCOPEDENUMS ON}
 {$POINTERMATH ON}
 {$BOOLEVAL OFF}
-{$INLINE ON}
+{$INLINE AUTO}
 
 interface
 
@@ -78,6 +78,9 @@ uses
   System.SyncObjs,
   System.Threading,
   System.Generics.Collections;
+
+const
+  TIE_BREAK_FACTOR: Double = 1.001;
 
 type
   ECrystalPathFinding = class(Exception);
@@ -173,8 +176,10 @@ type
 
   { for Improved Heuristic Algorythem ------------------------------------- }
   TTileMapHexOffset = (
-    hoOddR,                         // Odd-r  : odd rows are shifted right by +0.5 (default)
-    hoEvenR                         // Even-r : even rows are shifted right by +0.5
+    hoOddR,                         // Pointy-topped Odd-r  : odd rows are shifted right by +0.5 (default)
+    hoEvenR,                        // Pointy-topped Even-r : even rows are shifted right by +0.5
+    hoOddQ,                         // Flat-topped: 홀수 열(Column)이 아래로 0.5 이동 (현재 사용 중인 방식)
+    hoEvenQ                         // Flat-topped: 짝수 열(Column)이 아래로 0.5 이동
   );
 
   { ------------------------------------------------------------------ }
@@ -223,9 +228,8 @@ type
     procedure ReleaseContext(ACtx: PThreadContext);
     { Prepare context buffers immediately before a search }
     procedure PrepareContext(ACtx: PThreadContext; AMapSize: Integer);
+    { Improved Heuristic Algorythem }
     function  GetHeuristic(const AP1, AP2: TPoint): Single; inline;
-    { Improved Heuristic Algorythem ------------------------------------- }
-    function  GetHeuristic_ex(const AP1, AP2: TPoint): Single;
     procedure ArgumentTest(const AColumns, ARows: Integer; AKind: TTileMapKind);
   protected
     function DoFindPath(const AParams: TTileMapParams): TTileMapPath; virtual;
@@ -278,8 +282,6 @@ const
   //
   //   Effect: on large maps (512x512+), explored node count can drop 2-5x.
   // ──────────────────────────────────────────────────────────
-  TIE_BREAK_FACTOR: Double = 1.001;
-
 
 { ============================================================================ }
 { TTileMapPath                                                                 }
@@ -448,7 +450,7 @@ begin
   {  TParallel.For also uses ProcessorCount as its parallelism ceiling,  }
   {  so this count guarantees a context is always available immediately. }
   { -------------------------------------------------------------------- }
-  var _CtxCount     := 1;// Reserved : Max(TThread.ProcessorCount, 1);
+  var _CtxCount     := 1;  // Reserved : Max(TThread.ProcessorCount, 1);
   var _InitPoolSize := GetOptimalPoolSize(AColumns * ARows);
 
   SetLength(FContexts, _CtxCount);
@@ -623,34 +625,6 @@ begin
   var _DY := Abs(AP1.Y - AP2.Y);
 
   case FKind of
-    TTileMapKind.mkSimple:
-      Result := _DX + _DY;
-
-    TTileMapKind.mkDiagonal, TTileMapKind.mkDiagonalEx:
-      Result := Max(_DX, _DY) + 0.4142 * Min(_DX, _DY);
-
-    TTileMapKind.mkHexagonal:
-      begin
-        var _CubeX1 := AP1.X - (AP1.Y - (AP1.Y and 1)) div 2;
-        var _CubeZ1 := AP1.Y;
-        var _CubeY1 := -_CubeX1 - _CubeZ1;
-        var _CubeX2 := AP2.X - (AP2.Y - (AP2.Y and 1)) div 2;
-        var _CubeZ2 := AP2.Y;
-        var _CubeY2 := -_CubeX2 - _CubeZ2;
-        Result := (Abs(_CubeX1 - _CubeX2) + Abs(_CubeY1 - _CubeY2) +
-                   Abs(_CubeZ1 - _CubeZ2)) / 2.0;
-      end;
-  else
-    Result := Sqrt(_DX * _DX + _DY * _DY);
-  end;
-end;
-
-function TTileMap.GetHeuristic_ex(const AP1, AP2: TPoint): Single;
-begin
-  var _DX := Abs(AP1.X - AP2.X);
-  var _DY := Abs(AP1.Y - AP2.Y);
-
-  case FKind of
 
     // ────────────────────────────────────────────────────────
     // mkSimple : Manhattan Distance
@@ -719,16 +693,26 @@ begin
           //   RowShift = (Y - (Y mod 2)) / 2
           TTileMapHexOffset.hoOddR:
             begin
-              _RowShift1 := (AP1.Y - (AP1.Y and 1)) div 2;
-              _RowShift2 := (AP2.Y - (AP2.Y and 1)) div 2;
+              _RowShift1 := (AP1.Y - (AP1.Y and 1)) shr 1;
+              _RowShift2 := (AP2.Y - (AP2.Y and 1)) shr 1;
             end;
 
           // Even-r : even rows shifted right
           //   RowShift = (Y + (Y mod 2)) / 2
           TTileMapHexOffset.hoEvenR:
             begin
-              _RowShift1 := (AP1.Y + (AP1.Y and 1)) div 2;
-              _RowShift2 := (AP2.Y + (AP2.Y and 1)) div 2;
+              _RowShift1 := (AP1.Y + (AP1.Y and 1)) shr 1;
+              _RowShift2 := (AP2.Y + (AP2.Y and 1)) shr 1;
+            end;
+          TTileMapHexOffset.hoOddQ:
+            begin
+              _RowShift1 := (AP1.X - (AP1.X and 1)) div 2;
+              _RowShift2 := (AP2.X - (AP2.X and 1)) div 2;
+            end;
+          TTileMapHexOffset.hoEvenQ:
+            begin
+              _RowShift1 := (AP1.X + (AP1.X and 1)) div 2;
+              _RowShift1 := (AP2.X + (AP2.X and 1)) div 2;
             end;
         else
           // Unreachable — guard clause above catches all invalid values.
@@ -754,7 +738,7 @@ begin
         var _DiffX := _CubeX1 - _CubeX2;
         var _DiffZ := _CubeZ1 - _CubeZ2;
 
-        Result := (Abs(_DiffX) + Abs(_DiffZ) + Abs(_DiffX + _DiffZ)) / 2.0;
+        Result := (Abs(_DiffX) + Abs(_DiffZ) + Abs(_DiffX + _DiffZ)) * 0.5;
       end;
   else
     // ────────────────────────────────────────────────────────
@@ -971,7 +955,7 @@ begin
                           Inc(_PoolCount);
       _Current^.Pos    := AParams.Starts[_j];
       _Current^.G      := 0;
-      _Current^.H      := GetHeuristic_ex(_Current^.Pos, AParams.Finish);
+      _Current^.H      := GetHeuristic(_Current^.Pos, AParams.Finish);
       _Current^.F      := _Current^.H;
       _Current^.Parent := nil;
 
@@ -1053,7 +1037,7 @@ begin
                                Inc(_PoolCount);
           _Neighbor^.Pos    := _NextPos;
           _Neighbor^.G      := _NewG;
-          _Neighbor^.H      := GetHeuristic_ex(_NextPos, AParams.Finish);
+          _Neighbor^.H      := GetHeuristic(_NextPos, AParams.Finish);
           _Neighbor^.F      := _NewG + _Neighbor^.H;
           _Neighbor^.Parent := _Current;
 
@@ -1087,7 +1071,7 @@ begin
         if AParams.Weights <> nil then
           _StepCost := _StepCost + AParams.Weights^[_CellIdx] * 0.1;
 
-        _NewG := _Current^.G + _StepCost;
+        _NewG := Single(_Current^.G + _StepCost);
 
         if (_VisitedGen[_CellIdx] <> _MyGen) or
            (_NewG < _VisitedG[_CellIdx]) then
@@ -1108,7 +1092,7 @@ begin
                                Inc(_PoolCount);
           _Neighbor^.Pos    := _NextPos;
           _Neighbor^.G      := _NewG;
-          _Neighbor^.H      := GetHeuristic_ex(_NextPos, AParams.Finish);
+          _Neighbor^.H      := GetHeuristic(_NextPos, AParams.Finish);
           _Neighbor^.F      := _NewG + _Neighbor^.H;
           _Neighbor^.Parent := _Current;
 

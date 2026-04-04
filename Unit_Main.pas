@@ -8,7 +8,6 @@
 interface
 
 {$INLINE AUTO}
-{.$INLINE ON}
 
 uses
   System.SysUtils,
@@ -40,9 +39,10 @@ uses
   FMX.Memo.Types,
   FMX.ScrollBox,
   FMX.Memo,
+  FMX.Effects,
   FMX.Colors,
   //
-  CrystalPathFinding_ex, FMX.Effects, FMX.NumberBox;
+  CrystalPathFinding_ex;
 
 
 type
@@ -139,6 +139,8 @@ type
     Text2: TText;
     Line3: TLine;
     Action_SmoothLine: TAction;
+    TrackBar_WallValue: TTrackBar;
+    Label_WallOffset: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormDestroy(Sender: TObject);
@@ -179,6 +181,7 @@ type
     procedure MultiView_OptionsShown(Sender: TObject);
     procedure Action_OptionsExecute(Sender: TObject);
     procedure Action_SmoothLineExecute(Sender: TObject);
+    procedure TrackBar_WallValueChange(Sender: TObject);
   private
     FPathFinder: TTileMap;
     FMapWeights: TArray<Byte>;
@@ -192,6 +195,9 @@ type
     FStartPos: TPoint;
     FFinishPos: TPoint;
 
+    FLockMapFlag: Boolean;
+    FLockUpdate: Boolean;
+    FWallDefineVal: Integer;
     FWeightMultiplier: Single;
     FDragMode: TDragMode;
     FLastMousePos: TPointF;
@@ -199,7 +205,6 @@ type
     FBackup: TUndoBackup;
     FDefaultBackColor: TAlphaColor;
     FPathColor: TAlphaColor;
-    FLockMapFlag: Boolean;
     FDefaultMap: TImage;
     FZoomRatio: Single;
     FIsDrawingWall: Boolean;
@@ -251,6 +256,7 @@ type
 
     procedure ApplyTerrainCustomization(const AWeight, AWeightFlag: Byte; const AValue: Integer = 0);
     procedure RefineWallGrid;
+    procedure RefineWallGrid_hex;
     function IsHexLinePassable(const AP1, AP2: TPoint): Boolean;
     procedure OptimizeRoute(ATileMapPath:TTileMapPath);
     function GetHexLine(AHex, BHex: THexCube): TList<THexCube>;
@@ -270,7 +276,9 @@ type
     procedure SetCustomColorFlag(const Value: Boolean);
     procedure SetCustomColor(const Value: TAlphaColor);
     procedure ShowToastAlert(const AMsg: string);
+    procedure SetWallDefineVal(const Value: Integer);
   public
+    property WallDefineVal: Integer     read FWallDefineVal     write SetWallDefineVal;
     property ZoomRatio: Single          read FZoomRatio         write SetZoomRatio;
     property SetCellSize: Single        read FSetCellSize       write SetSetCellSize;
     property CustomColor: TAlphaColor   read FCustomColor       write SetCustomColor;
@@ -303,10 +311,10 @@ const
 const
   C_CellSizeDefault = 32.0;
   C_ColStep         = 0.75;
-  C_SQRT2           = 1.4142135623730950488016887242097;
-  C_SQRT3_2         = 0.8660254037844387;                                       // sqrt(3) / 2  — exact to 16 digits
   C_HALF            = 0.5;
-
+  C_SQRT3_2_MAX     = 0.86602540378443864676;                                   // sqrt(3) / 2  — exact to 16 digits
+  C_SQRT2_MAX       = 1.41421356237309504880;
+  C_INV_SQRT3       = 0.57735026918962576451;                                   // 1 / Sqrt(3)
   C_PathColors: array [0..4] of TAlphaColor = (
                   TAlphaColorRec.Yellow, TAlphaColorRec.White,TAlphaColorRec.Blue,
                   TAlphaColorRec.Red,TAlphaColorRec.Green);
@@ -314,6 +322,12 @@ const
 var
   GWeightColorTable1: array [0..255] of TAlphaColor;
   GWeightColorTable2: array [0..255] of TAlphaColor;
+
+const
+  C_HEX_OFFSETS: array [0..1, 0..5, 0..1] of ShortInt = (
+    ((0,-1), (0,1), (-1,0), (1,0), (-1,-1), (1,-1)),   // Even Column
+    ((0,-1), (0,1), (-1,0), (1,0), (-1,1),  (1,1))     // Odd Column
+  );
 
 procedure InitWeightColorTable1;
 begin
@@ -405,13 +419,14 @@ begin
   FTileMapkind := TTileMapKind(3);
 
   TrackBar_Weight.Value := 50;
-  Label_WeightScale.Text := Format('Map Weight Scale %.2f', [TrackBar_Weight.Value / 100]);
-  Label_PathTileSize.Text := '🏁 Path Tile Size  (20 - 64) : '+Trunc(C_CellSizeDefault).ToString;
+  Label_WeightScale.Text := Format('📍 Default Weight Scale %.2f', [TrackBar_Weight.Value / 100]);
+  Label_PathTileSize.Text := '🏁 MAP Tile Size (Default) : '+Trunc(C_CellSizeDefault).ToString;
   FSetCellSize := C_CellSizeDefault;
   TrackBar_TileSize.Value := C_CellSizeDefault;
   FZoomRatio := 1.0;
   FGridStrokeThick := 0.8;
   FFilterIndex := 0;
+  FWallDefineVal := 3;
 
   LoadIniOptions();
   SetupMultiViewPopup;
@@ -448,7 +463,7 @@ begin
   try
     FFirstTileFlag                 := ReadBool   ('Management',  'FirstTime',       True);
     FunnyFlag                      := ReadInteger('Management',  'Funnyflag',       0);
-    CheckBox_Weights.IsChecked     := ReadBool   ('UIOptions',   'Analysis',         False);
+    CheckBox_Weights.IsChecked     := ReadBool   ('UIOptions',   'Analysis',        False);
     CheckBox_AddTerrain.IsChecked  := ReadBool   ('UIOptions',   'Calcurate',       True);
     CheckBox_WeightCell.IsChecked  := ReadBool   ('UIOptions',   'Cellweight',      False);
     CheckBox_SmoothLine.IsChecked  := ReadBool   ('UIOptions',   'Soothline',       False);
@@ -461,7 +476,8 @@ begin
     TrackBar_Weight.Value          := ReadFloat  ('MapParams',   'SetWeight',       50.0);
     TrackBar_TileSize.Value        := ReadFloat  ('MapParams',   'Tilesize',        C_CellSizeDefault);
     TrackBar_CellWeight.Value      := ReadFloat  ('MapParams',   'CellWeight',      100.0);
-
+    FWallDefineVal                 := ReadInteger('MapParams',   'WallDefine',      3);
+    TrackBar_WallValue.Value       := FWallDefineVal;
     ComboBox_Kind.ItemIndex        := ReadInteger('MapParams',   'MapKind',         3);
   finally
     Free;
@@ -490,6 +506,7 @@ begin
     WriteFloat  ('MapParams',    'SetWeight',       TrackBar_Weight.Value);
     WriteFloat  ('MapParams',    'Tilesize',        TrackBar_TileSize.Value);
     WriteFloat  ('MapParams',    'CellWeight',      TrackBar_CellWeight.Value);
+    WriteInteger('MapParams',    'WallDefine',      FWallDefineVal);
     WriteInteger('MapParams',    'MapKind',         ComboBox_Kind.ItemIndex);
   finally
     UpdateFile;
@@ -526,6 +543,14 @@ begin
     YRadius := 10;
 
     Enabled := not FLockMapFlag;
+  end;
+end;
+
+procedure TFormMain.SetWallDefineVal(const Value: Integer);
+begin
+  if FWallDefineVal <> Value then
+  begin
+    FWallDefineVal := Value;
   end;
 end;
 
@@ -681,7 +706,6 @@ begin
   begin
     var ScaleX := PaintBox_Map.Width / _MapWidth;
     var ScaleY := PaintBox_Map.Height / _MapHeight;
-    // Reserved - if AInitFlag then
     var _FillScale := Max(ScaleX, ScaleY);
     FCellSize := FCellSize * _FillScale;
     HexMapPixelSize(_MapWidth, _MapHeight);
@@ -697,13 +721,16 @@ procedure TFormMain.HexMapPixelSize(out AWidth, AHeight: Single);
 begin
   if FPathFinder.Kind = TTileMapKind.mkHexagonal then
     begin
-      AWidth  := (FPathFinder.Columns  - 1) *   FCellSize * C_ColStep + FCellSize;
-      AHeight := (FPathFinder.Rows + 0.5) *     FCellSize * C_SQRT3_2;
+      var _Width: Double  := (Double(FPathFinder.Columns) - 1) * Double(FCellSize) * C_ColStep + Double(FCellSize);
+      var _Height: Double := (Double(FPathFinder.Rows) + 0.5)  * Double(FCellSize) * C_SQRT3_2_MAX;
+
+      AWidth  := Single(_Width);
+      AHeight := Single(_Height);
     end
   else
     begin
-      AWidth  := FPathFinder.Columns  * FCellSize;
-      AHeight := FPathFinder.Rows *     FCellSize;
+      AWidth  := FPathFinder.Columns * FCellSize;
+      AHeight := FPathFinder.Rows *    FCellSize;
     end;
 end;
 
@@ -711,13 +738,12 @@ procedure TFormMain.ConstrainViewOffset;
 begin
   if (FPathFinder = nil) then Exit;
 
-  var _MapWidth :=   FPathFinder.Columns *  FCellSize;
-  var _MapHeight :=  FPathFinder.Rows *     FCellSize;
+  var _MapWidth :=   FPathFinder.Columns * FCellSize;
+  var _MapHeight :=  FPathFinder.Rows *    FCellSize;
   if FPathFinder.Kind = TTileMapKind.mkHexagonal then
   begin
-    { Real hex pixel dimensions }
-    _MapWidth :=  (FPathFinder.Columns  - 1)   * FCellSize * C_ColStep + FCellSize;
-    _MapHeight := (FPathFinder.Rows + 0.5) * FCellSize * C_SQRT3_2;
+    _MapWidth :=  (FPathFinder.Columns  - 1) * FCellSize * C_ColStep + FCellSize;
+    _MapHeight := (FPathFinder.Rows + 0.5) *   FCellSize * C_SQRT3_2_MAX;
   end;
 
   if _MapWidth <= PaintBox_Map.Width then
@@ -733,6 +759,7 @@ end;
 
 procedure TFormMain.CheckBox_WeightsChange(Sender: TObject);
 begin
+  if FLockUpdate then Exit;
   PaintBox_Map.Repaint;
 end;
 
@@ -743,6 +770,7 @@ end;
 
 procedure TFormMain.CheckBox_FilterBDChange(Sender: TObject);
 begin
+  if FLockUpdate then Exit;
   AnalyzeHeightMap(FFilterIndex);
   UpdatePath();
 end;
@@ -760,7 +788,7 @@ begin
       { Find which columns and rows are actually on screen by scanning
         the grid boundaries rather than reverse-projecting screen corners }
       var _ColStep := FCellSize * C_ColStep;
-      var _HexH    := FCellSize * C_SQRT3_2;
+      var _HexH    := FCellSize * C_SQRT3_2_MAX;
 
       { Leftmost column whose centre is >= screen left }
       _FirstVisCol := Max(0, Trunc((0 - FViewOffset.X - FCellSize) / _ColStep));
@@ -828,6 +856,7 @@ begin
           if _x > _MaxX then _MaxX := _x;
           if _y < _MinY then _MinY := _y;
           if _y > _MaxY then _MaxY := _y;
+
           _IsFound := True;
         end;
       end;
@@ -853,19 +882,18 @@ procedure TFormMain.InitializeGrid(const ADefault: Boolean = False);
 begin
   var _CellSize := FSetCellSize;
   if ADefault then _CellSize := TrackBar_TileSize.Value;
-
   FSetCellSize := _CellSize;
 
   { Calculate grid dimensions based on current PaintBox size }
-  var _TileWidth :=  Max(5, Trunc(PaintBox_Map.Width /   FSetCellSize));
-  var _TileHeight := Max(5, Trunc(PaintBox_Map.Height /  FSetCellSize));
+  var _TileWidth :=  Max(5, Trunc(PaintBox_Map.Width /  FSetCellSize));
+  var _TileHeight := Max(5, Trunc(PaintBox_Map.Height / FSetCellSize));
 
   if not FLockMapFlag and Assigned(FBackgroundBitmap) then
   begin
     if FPathFinder.Kind = TTileMapKind.mkHexagonal then
       begin
         _TileWidth  := Max(10, Trunc(FBackgroundBitmap.Width  / (FSetCellSize * C_ColStep)));
-        _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / (FSetCellSize * C_SQRT3_2)));
+        _TileHeight := Max(10, Trunc(FBackgroundBitmap.Height / (FSetCellSize * C_SQRT3_2_MAX)));
       end
     else
       begin
@@ -914,69 +942,69 @@ end;
 
   procedure ClassifyPixel(R, G, B: Byte; out AWeight: Byte; out AWall: Boolean); inline;
   var
-    H, S, V: Single;
+    _H, _S, _V: Single;
   begin
-    RGBToHSV(R, G, B, H, S, V);
+    RGBToHSV(R, G, B, _H, _S, _V);
 
     { 1. Deep shadow / tunnel / no-data -> wall                                }
-    {    V < 0.10 is nearly black; building shadows in Google Maps fall here   }
-    {    However, if S is slightly elevated it could be dense vegetation,      }
-    {    so S is also checked before marking as wall                           }
-    if (V < 0.10) and (S < 0.20) then
+    {    _V < 0.10 is nearly black; building shadows in Google Maps fall here   }
+    {    However, if _S is slightly elevated it could be dense vegetation,      }
+    {    so _S is also checked before marking as wall                           }
+    if (_V < 0.10) and (_S < 0.20) then
     begin
       AWall := True; AWeight := 255; Exit;
     end;
 
     { 2. Water body (river, lake, reservoir) -> wall                           }
     {    Blue hue range with noticeable saturation                             }
-    if (H >= 170) and (H <= 245) and (S > 0.22) and (V > 0.12) then
+    if (_H >= 170) and (_H <= 245) and (_S > 0.22) and (_V > 0.12) then
     begin
       AWall := True; AWeight := 255; Exit;
     end;
 
     { 3. Road / paved surface -> Weight 0~15 (strongly preferred by pathfinder)}
-    {    Achromatic (low S) + mid-range V -> asphalt / concrete                }
-    {    V range extended to 0.20~0.80 to include shaded road sections         }
-    if (S < 0.16) and (V >= 0.20) and (V <= 0.80) then
+    {    Achromatic (low _S) + mid-range _V -> asphalt / concrete                }
+    {    _V range extended to 0.20~0.80 to include shaded road sections         }
+    if (_S < 0.16) and (_V >= 0.20) and (_V <= 0.80) then
     begin
       AWall := False;
       { Slight cost gradient by road brightness: bright road = 0, dark = 15  }
-      AWeight := Trunc(Max(0.0, (0.45 - V)) * 30.0);
+      AWeight := Trunc(Max(0.0, (0.45 - _V)) * 30.0);
       Exit;
     end;
 
     { 4. Bright building rooftop / parking lot -> Weight 25                    }
-    {    Low S and high V: concrete surfaces, flat rooftops                    }
-    if (S < 0.22) and (V > C_ColStep) then
+    {    Low _S and high _V: concrete surfaces, flat rooftops                    }
+    if (_S < 0.22) and (_V > C_ColStep) then
     begin
       AWall := False; AWeight := 25; Exit;
     end;
 
     { 5. Vegetation / forest / park -> Weight 50~180 (passable, high cost)     }
     {    [KEY FIX] KEY FIX: vegetation is no longer classified as a wall       }
-    {    H 75~165 (yellow-green to cyan-green), S > 0.15                       }
-    {    Even with low V (dense canopy shade) it is treated as vegetation,     }
+    {    _H 75~165 (yellow-green to cyan-green), _S > 0.15                       }
+    {    Even with low _V (dense canopy shade) it is treated as vegetation,     }
     {    which resolves the misclassification present in the original code     }
-    if (H >= 75) and (H <= 165) and (S > 0.15) then
+    if (_H >= 75) and (_H <= 165) and (_S > 0.15) then
     begin
       AWall := False;
-      { Higher S (denser forest) and lower V (deeper shade) raise the cost     }
-      AWeight := EnsureRange(Trunc(50 + S * 100 + (0.6 - V) * 60), 50, 180);
+      { Higher _S (denser forest) and lower _V (deeper shade) raise the cost     }
+      AWeight := EnsureRange(Trunc(50 + _S * 100 + (0.6 - _V) * 60), 50, 180);
       Exit;
     end;
 
     { 6. Bare soil / unpaved path / farmland -> Weight 30~100                  }
     {    Earthy / ochre hue range                                              }
-    if (H >= 18) and (H <= 58) and (S > 0.14) and (V > 0.22) then
+    if (_H >= 18) and (_H <= 58) and (_S > 0.14) and (_V > 0.22) then
     begin
       AWall := False;
-      AWeight := EnsureRange(Trunc(30 + (1.0 - V) * 70), 30, 100);
+      AWeight := EnsureRange(Trunc(30 + (1.0 - _V) * 70), 30, 100);
       Exit;
     end;
 
     { 7. Building facade / general urban area (fallback)                       }
     AWall   := False;
-    AWeight := EnsureRange(Trunc((1.0 - V) * 80 + S * 50), 0, 200);
+    AWeight := EnsureRange(Trunc((1.0 - _V) * 80 + _S * 50), 0, 200);
   end;
 
   procedure ClassifyPixel_Buildings0(R, G, B: Byte; out AWeight: Byte; out AWall: Boolean); inline;
@@ -1087,11 +1115,11 @@ begin
 
   var _ClassifyProc: TClassifyProc;
   if CheckBox_FilterBD.IsChecked then
-  begin
-    if AClassifyFlag = 0
-      then _ClassifyProc := ClassifyPixel_Buildings0
-      else _ClassifyProc := ClassifyPixel_Buildings1;
-  end
+    begin
+      if AClassifyFlag = 0
+        then _ClassifyProc := ClassifyPixel_Buildings0
+        else _ClassifyProc := ClassifyPixel_Buildings1;
+    end
   else
     _ClassifyProc := ClassifyPixel;
 
@@ -1126,7 +1154,7 @@ begin
     { Adaptive Wall Threshold }
     var _WallThresh: Single := EnsureRange(0.55 - (_MeanV - 0.40) * 0.30 + (_MeanS - 0.15) * 0.25, 0.35, 0.65);
 
-    TParallel.For(0, FPathFinder.Rows - 1, procedure(_GridY: Integer)
+    TParallel.For(0, FPathFinder.Rows - 1, procedure(Row: Integer)
       var
         _WeightSum : array of Int64;
         _WallVotes : array of Integer;
@@ -1140,11 +1168,13 @@ begin
         SetLength(_WallVotes,  FPathFinder.Columns);
         SetLength(_PixelCount, FPathFinder.Columns);
 
-        for var _py := Max(0, Trunc(_GridY * _StepY)) to Min(FBackgroundBitmap.Height - 1, Trunc((_GridY + 1) * _StepY) - 1) do
+        for var _py := Max(0, Trunc(Row * _StepY)) to
+              Min(FBackgroundBitmap.Height - 1, Trunc((Row + 1) * _StepY) - 1) do
         begin
           _Scan := _Data.GetScanline(_py);
           for _GridX := 0 to FPathFinder.Columns - 1 do
-            for var _px := Max(0, Trunc(_GridX * _StepX)) to Min(FBackgroundBitmap.Width - 1, Trunc((_GridX + 1) * _StepX) - 1) do
+            for var _px := Max(0, Trunc(_GridX * _StepX)) to
+                  Min(FBackgroundBitmap.Width - 1, Trunc((_GridX + 1) * _StepX) - 1) do
             begin
               _RecColor := _Scan^[_px];
               _ClassifyProc(_RecColor.R, _RecColor.G, _RecColor.B, _PixW, _IsWall);;
@@ -1158,7 +1188,7 @@ begin
         for _GridX := 0 to FPathFinder.Columns - 1 do
         begin
           if _PixelCount[_GridX] = 0 then Continue;
-          _Idx := _GridY * FPathFinder.Columns + _GridX;
+          _Idx := Row * FPathFinder.Columns + _GridX;
 
           if (_WallVotes[_GridX] / _PixelCount[_GridX]) >= _WallThresh then
             begin
@@ -1183,61 +1213,67 @@ end;
 
 procedure TFormMain.ApplyTerrainTraining(const AGX, AGY: Integer);
 begin
-  if FBackgroundBitmap.IsEmpty or (FPathFInder = nil) then Exit;
+  if FBackgroundBitmap.IsEmpty or (FPathFinder = nil) then Exit;
 
   var _Data: TBitmapData;
   if not FBackgroundBitmap.Map(TMapAccess.Read, _Data) then Exit;
   try
     const _TolH = 15.0;
-    const _TolS = 0.15;
-    const _TolV = 0.20;
+    const _TolS = 0.20;
+    const _TolV = 0.25;
 
-    var _StepX := FBackgroundBitmap.Width /  FPathFinder.Columns;
-    var _StepY := FBackgroundBitmap.Height / FPathFinder.Rows;
+    var _StepX: Double := Double(FBackgroundBitmap.Width) / FPathFinder.Columns;
+    var _StepY: Double := Double(FBackgroundBitmap.Height) / FPathFinder.Rows;
     var _RefPX := Trunc(AGX * _StepX);
     var _RefPY := Trunc(AGY * _StepY);
-    var _RefScan: PAlphaColorRecArray;
-    _RefScan := _Data.GetScanline(_RefPY);
-    var _ColorRec := _RefScan^[_RefPX];
+    var _ColorRec := PAlphaColorRecArray(_Data.GetScanline(_RefPY))^[_RefPX];
 
-    var _TargetH: Single := 0;
-    var _TargetS: Single := 0;
-    var _TargetV: Single := 0;
+    var _TargetH, _TargetS, _TargetV: Single;
     RGBToHSV(_ColorRec.R, _ColorRec.G, _ColorRec.B, _TargetH, _TargetS, _TargetV);
 
-
-    TParallel.For(0, FPathFinder.Rows - 1, procedure(_GridY: Integer)
+    TParallel.For(0, FPathFinder.Rows - 1, procedure(Row: Integer)
       var
-        _RecColor: TAlphaColorRec;
         _H, _S, _V: Single;
         _Scan: PAlphaColorRecArray;
         _GridX, _Idx: Integer;
-       begin
-        for var _py := Max(0, Trunc(_GridY * _StepY)) to Min(FBackgroundBitmap.Height - 1, Trunc((_GridY + 1) * _StepY) - 1) do
+        _DiffH: Single;
+        _px, _py: Integer;
+        _PY_Start, _PY_End: Integer;
+        _PX_Start, _PX_End: Integer;
+      begin
+        _PY_Start := Trunc(Row * _StepY);
+        _PY_End   := Trunc((Row + 1) * _StepY) - 1;
+
+        for _py := Max(0, _PY_Start) to Min(FBackgroundBitmap.Height - 1, _PY_End) do
         begin
           _Scan := _Data.GetScanline(_py);
 
           for _GridX := 0 to FPathFinder.Columns - 1 do
-            for var _px := Max(0, Trunc(_GridX * _StepX)) to Min(FBackgroundBitmap.Width - 1, Trunc((_GridX + 1) * _StepX) - 1) do
-            begin
-              _RecColor := _Scan^[_px];
-              RGBToHSV(_RecColor.R, _RecColor.G, _RecColor.B, _H, _S, _V);
-              _Idx := _GridY * FPathFinder.Columns + _GridX;
+          begin
+            _PX_Start := Trunc(_GridX * _StepX);
+            _PX_End   := Trunc((_GridX + 1) * _StepX) - 1;
 
-              if (Abs(_H - _TargetH) < _TolH) and
-                 (Abs(_S - _TargetS) < _TolS) and
-                 (Abs(_V - _TargetV) < _TolV) then
-                begin
-                  (FPathFInder.Data + _Idx)^ := 0; // Road
-                  FMapWeights[_Idx] := 0;
-                  CustomColor := MakeColor(_RecColor.R, _RecColor.G, _RecColor.B);
-                end
-              else
-                begin
-                  (FPathFInder.Data + _Idx)^ := 1; // Wall
-                  FMapWeights[_Idx] := 255;
-                end;
-            end;
+            _px := (_PX_Start + _PX_End) div 2;
+            var _RecColor := _Scan^[_px];
+
+            RGBToHSV(_RecColor.R, _RecColor.G, _RecColor.B, _H, _S, _V);
+
+            _DiffH := Abs(_H - _TargetH);
+            if _DiffH > 180 then _DiffH := 360 - _DiffH;
+
+            _Idx := Row * FPathFinder.Columns + _GridX;
+
+            if (_DiffH < _TolH) and (Abs(_S - _TargetS) < _TolS) and (Abs(_V - _TargetV) < _TolV) then
+              begin
+                FPathFinder.Data[_Idx] := 0; // Road
+                FMapWeights[_Idx] := 0;
+              end
+            else
+              begin
+                FPathFinder.Data[_Idx] := 1; // Wall
+                FMapWeights[_Idx] := 255;
+              end;
+          end;
         end;
       end);
   finally
@@ -1249,13 +1285,17 @@ begin
 end;
 
 procedure TFormMain.RefineWallGrid;
-var
-  _TempMap: array of Byte;
-  _ResultMap: array of Byte;
 begin
+  if FPathFinder.Kind = TTileMapKind.mkHexagonal then
+  begin
+    RefineWallGrid_hex;
+    Exit;
+  end;
+
   var _mapRows :=    FPathFInder.Rows;
   var _mapColumns := FPathFInder.Columns;
-
+  var _TempMap: array of Byte;
+  var _ResultMap: array of Byte;
   SetLength(_TempMap, _mapColumns * _mapRows);
   Move(FPathFinder.Data^, _TempMap[0], _mapColumns * _mapRows);
   SetLength(_ResultMap, _mapRows * _mapColumns);
@@ -1274,7 +1314,7 @@ begin
       begin
         _WallCount := 0;
 
-        { 8-way neighbor cell inspection }
+        { 8-way neighbor cell inspection ? }
         for _ny := -1 to 1 do
           for _nx := -1 to 1 do
           begin
@@ -1282,10 +1322,9 @@ begin
             if _TempMap[(Row + _ny) * _mapColumns + (_Col + _nx)] = 1 then
               Inc(_WallCount);
           end;
-
         { Setting threshold: If more than 4 out of 8 compartments are walls,
           this is also considered to be the interior of the building }
-        if _WallCount >= 3 then //2 then   // 4
+        if _WallCount >= FWallDefineVal then
         begin
           _ResultMap[_Idx] := 1;
         end;
@@ -1295,6 +1334,60 @@ begin
 
   for var _i := 0 to _mapRows * _mapColumns - 1 do
     if _ResultMap[_i] = 1 then
+    begin
+      (FPathFinder.Data + _i)^ := 1;
+      FMapWeights[_i] := 255;
+    end;
+end;
+
+procedure TFormMain.RefineWallGrid_hex;
+begin
+  var _mapRows := FPathFinder.Rows;
+  var _mapCols := FPathFinder.Columns;
+  var _TempMap: array of Byte;
+  var _ResultMap: array of Byte;
+  SetLength(_TempMap, _mapCols * _mapRows);
+  Move(FPathFinder.Data^, _TempMap[0], _mapCols * _mapRows);
+  SetLength(_ResultMap, _mapRows * _mapCols);
+  Move(FPathFinder.Data^, _ResultMap[0], _mapRows * _mapCols);
+
+  var _srcPtr: PByte := @_TempMap[0];
+  var _resPtr: PByte := @_ResultMap[0];
+
+  TParallel.For(1, _mapRows - 2, procedure(Row: Integer)
+  var
+    _Idx, _WallCount: Integer;
+    _nx, _ny: Integer;
+    _colParity: Integer;
+  begin
+    for var _Col := 1 to _mapCols - 2 do
+    begin
+      _Idx := Row * _mapCols + _Col;
+
+      if _srcPtr[_idx] = 0 then
+      begin
+        _WallCount := 0;
+        _colParity := _Col and 1;
+
+        for var _neighbor := 0 to 5 do
+        begin
+          _nx := _Col + C_HEX_OFFSETS[_colParity, _neighbor, 0];
+          _ny := Row  + C_HEX_OFFSETS[_colParity, _neighbor, 1];
+
+          if _TempMap[_ny * _mapCols + _nx] = 1 then
+            Inc(_WallCount);
+        end;
+
+        if _WallCount >= FWallDefineVal then
+        begin
+          _resPtr[_idx] := 1;//_ResultMap[_Idx] := 1;
+        end;
+      end;
+    end;
+  end);
+
+  for var _i := 0 to _mapRows * _mapCols - 1 do
+  if _ResultMap[_i] = 1 then
     begin
       (FPathFinder.Data + _i)^ := 1;
       FMapWeights[_i] := 255;
@@ -1463,7 +1556,7 @@ function HexCenterF(const GX, GY: Integer;
                     const ACellSize: Single;
                     const AViewOffset: TPointF): TPointF;
 begin
-  var _HexH     := ACellSize * C_SQRT3_2;
+  var _HexH     := ACellSize * C_SQRT3_2_MAX;
   var _ColStep  := ACellSize * C_ColStep;
   var _OddColOffset := IfThen(Odd(GX), _HexH * 0.5, 0);
 
@@ -1486,14 +1579,14 @@ begin
   { = CellSize / 2  when CellSize is the flat-to-flat (short) diameter  }
   { = CellSize / sqrt(3)  for point-to-point (long) diameter            }
   { Here CellSize is flat-to-flat, so circumradius = CellSize / sqrt(3) }
-  var Radius := ACellSize / 1.7320508;  // = 1/sqrt(3)
-  var AngleRad: Single := 0;
+  var Radius := Double(ACellSize) * C_INV_SQRT3;
+  var AngleRad: Double := 0;
 
   for var _i := 0 to 5 do
   begin
-    AngleRad     := (Pi / 3.0) * _i;   // 0°, 60°, 120°, 180°, 240°, 300°
-    ACorners[_i] := PointF(ACentre.X + Radius * Cos(AngleRad),
-                           ACentre.Y + Radius * Sin(AngleRad));
+    AngleRad     := (Pi / 3.0) * _i;                                            // 0°, 60°, 120°, 180°, 240°, 300°
+    ACorners[_i] := PointF(ACentre.X + Single(Radius * Cos(AngleRad)),
+                           ACentre.Y + Single(Radius * Sin(AngleRad)));
   end;
 end;
 
@@ -1532,7 +1625,7 @@ end;
 { Flat-top orientation, even-column offset.              }
 function TFormMain.HexCellCenter(const AGX, AGY: Integer): TPointF;
 begin
-  var _HexH    := FCellSize * C_SQRT3_2;
+  var _HexH    := FCellSize * C_SQRT3_2_MAX;
   var _ColStep := FCellSize * C_ColStep;
   var _OddOff  := IfThen(Odd(AGX), _HexH * 0.5, 0.0);
   Result.X := FViewOffset.X + AGX * _ColStep + FCellSize * 0.5;
@@ -1546,7 +1639,7 @@ begin
   Result := TPoint.Zero;
   if (FPathFinder = nil) or (FCellSize <= 0) then Exit;
 
-  var _HexH    := FCellSize * C_SQRT3_2;
+  var _HexH    := FCellSize * C_SQRT3_2_MAX;
   var _ColStep := FCellSize * C_ColStep;
 
   { Raw estimate — may be negative or beyond grid bounds, that is fine }
@@ -1708,7 +1801,7 @@ begin
 
   { --- Hexagonal tiles --- }
   var _ViewRect :=  RectF(0, 0, PaintBox_Map.Width, PaintBox_Map.Height);
-  var _HexH :=      FCellSize * C_SQRT3_2;
+  var _HexH :=      FCellSize * C_SQRT3_2_MAX;
   var _ColStep :=   FCellSize * C_ColStep;
   var _Idx :=       0;
   var _Val: Byte := 0;
@@ -1777,7 +1870,7 @@ begin
   { --- Hexagonal grid --- }
   if FCellSize < 6 then Exit;                                                   // too small to draw meaningfully
 
-  var _HexH    := FCellSize * C_SQRT3_2;
+  var _HexH    := FCellSize * C_SQRT3_2_MAX;
   var _ColStep := FCellSize * C_ColStep;
 
   { Visible viewport — skip hexagons entirely outside the screen }
@@ -1877,6 +1970,8 @@ begin
   if FPathFinder = nil then Exit;
 
   if FLockMapFlag then begin DrawLogo(Canvas); Exit; end;
+  if FLockUpdate then Exit;
+
   if FCellSize < 10 then Exit;
 
   var _State: TCanvasSaveState := Canvas.SaveState;
@@ -1921,6 +2016,7 @@ begin
   Rectangle_Red.Opacity :=    IfThen(AFlag =3, 1.0, 0.5);
   Rectangle_Green.Opacity :=  IfThen(AFlag =4, 1.0, 0.5);
 
+  if FLockUpdate then Exit;
   if ARepaint then PaintBox_Map.Repaint;
 end;
 
@@ -2152,7 +2248,7 @@ begin
   var _applycount := 0;
   var _applyvalue: Byte := IfThen(AValue=0, 0, 255);
 
-  TParallel.For(0, FPathFinder.Rows -1, procedure(ARow: Integer)
+  TParallel.For(0, FPathFinder.Rows -1, procedure(Row: Integer)
   var
     _Idx: Integer;
     _weight: Byte;
@@ -2161,7 +2257,7 @@ begin
   begin
     for var _x := 0 to FPathFinder.Columns - 1 do
     begin
-      _Idx :=    ARow * FPathFinder.Columns + _x;
+      _Idx :=    Row * FPathFinder.Columns + _x;
       _weight := FMapWeights[_Idx];
 
       var _low :=  Max(0,   Int32(AWeight) - _offset);
@@ -2359,7 +2455,7 @@ end;
 
 procedure TFormMain.Button_DefaultParamsClick(Sender: TObject);
 begin
-  FLockMapFlag := True;
+  FLockUpdate := True;
 
   CheckBox_Weights.IsChecked     := False;
   CheckBox_AddTerrain.IsChecked  := True;
@@ -2371,14 +2467,16 @@ begin
   TrackBar_Weight.Value          := 50.0;
   TrackBar_TileSize.Value        := C_CellSizeDefault;
   TrackBar_CellWeight.Value      := 100.0;
-
+  TrackBar_WallValue.Value       := 3;
+  WallDefineVal                  := 3;
   ComboBox_Kind.ItemIndex        := 3;
   FTileMapkind                   := TTileMapKind(3);
   SetPathColorControl(0, False);
 
-  Label_PathTileSize.Text := '🏁 Path Tile Size  (20 - 64) : '+Trunc(C_CellSizeDefault).ToString;
-  FLockMapFlag := False;
-  InitializeGrid(True);
+  Label_PathTileSize.Text := '🏁 MAP Tile Size (Default) : '+Trunc(C_CellSizeDefault).ToString;
+  FLockUpdate := False;
+;
+  Action_ResetMapExecute(Self);
 end;
 
 procedure TFormMain.UpdateStatusLabel();
@@ -2398,14 +2496,22 @@ end;
 
 procedure TFormMain.ColorComboBox_GridChange(Sender: TObject);
 begin
+  if FLockUpdate then Exit;
   PaintBox_Map.Repaint;
 end;
 
 procedure TFormMain.ComboBox_KindChange(Sender: TObject);
 begin
-  if FLockMapFlag then Exit;
+  if FLockUpdate then Exit;
   FTileMapkind := TTileMapKind(ComboBox_Kind.ItemIndex);
   InitializeGrid(True);
+end;
+
+procedure TFormMain.TrackBar_WallValueChange(Sender: TObject);
+begin
+  if FLockUpdate then Exit;
+  WallDefineVal := Round(TrackBar_WallValue.Value);
+  Label_WallOffset.Text := '🗺 Refine WALL '+ WallDefineVal.ToString;
 end;
 
 procedure TFormMain.TrackBar_CellWeightChange(Sender: TObject);
@@ -2416,23 +2522,24 @@ end;
 
 procedure TFormMain.TrackBar_TileSizeChange(Sender: TObject);
 begin
+  if FLockUpdate then Exit;
   PaintBox_Map.Repaint;
-  Label_PathTileSize.Text := '🏁 Path Tile Size  (20 - 64) : '+Trunc(FSetCellSize).ToString;
+  Label_PathTileSize.Text := '🏁 MAP Tile Size (Default) : '+Trunc(FSetCellSize).ToString;
 end;
 
 procedure TFormMain.TrackBar_TileSizeTracking(Sender: TObject);
 begin
-  if FLockMapFlag then Exit;
+  if FLockUpdate then Exit;
   FSetCellSize := TrackBar_TileSize.Value;
   InitializeGrid(True);
 end;
 
 procedure TFormMain.TrackBar_WeightTracking(Sender: TObject);
 begin
-  if FLockMapFlag then Exit;
+  if FLockUpdate then Exit;
 
   FWeightMultiplier := TrackBar_Weight.Value / 100;
-  Label_WeightScale.Text := Format('Map Weight Scale %.2f', [FWeightMultiplier]);
+  Label_WeightScale.Text := Format('📍 Default Weight Scale %.2f', [FWeightMultiplier]);
 
   AnalyzeHeightMap(FFilterIndex);
   UpdatePath(True);
