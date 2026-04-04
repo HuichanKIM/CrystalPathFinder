@@ -165,20 +165,20 @@ object FormMain: TFormMain
           Align = Center
           Fill.Color = claGray
           HitTest = False
-          Margins.Left = 2.000000000000000000
-          Margins.Top = 2.000000000000000000
-          Margins.Right = 4.000000000000000000
-          Margins.Bottom = 2.000000000000000000
-          Size.Width = 21.000000000000000000
-          Size.Height = 21.000000000000000000
+          Margins.Left = 1.000000000000000000
+          Margins.Top = 1.000000000000000000
+          Margins.Right = 1.000000000000000000
+          Margins.Bottom = 1.000000000000000000
+          Size.Width = 24.000000000000000000
+          Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
-          XRadius = 10.000000000000000000
-          YRadius = 10.000000000000000000
+          XRadius = 3.000000000000000000
+          YRadius = 3.000000000000000000
           object Text1: TText
             Align = Client
             HitTest = False
-            Size.Width = 21.000000000000000000
-            Size.Height = 21.000000000000000000
+            Size.Width = 24.000000000000000000
+            Size.Height = 24.000000000000000000
             Size.PlatformDefault = False
             Text = #55357#56487
             TextSettings.FontColor = claDarkblue
@@ -639,7 +639,7 @@ object FormMain: TFormMain
           Size.PlatformDefault = False
           Stroke.Color = claSilver
         end
-        object TrackBar_WallValue: TTrackBar
+        object TrackBar_WallFactor: TTrackBar
           CanParentFocus = True
           Max = 8.000000000000000000
           Min = 1.000000000000000000
@@ -653,7 +653,7 @@ object FormMain: TFormMain
           Value = 3.000000000000000000
           ParentShowHint = False
           ShowHint = True
-          OnChange = TrackBar_WallValueChange
+          OnChange = TrackBar_WallFactorChange
         end
         object Label_WallOffset: TLabel
           Position.X = 17.000000000000000000
@@ -661,7 +661,7 @@ object FormMain: TFormMain
           Size.Width = 107.000000000000000000
           Size.Height = 17.000000000000000000
           Size.PlatformDefault = False
-          Text = #55357#56826' Refine WALL 3'
+          Text = #55357#56826' WALL-Factor 3'
           TabOrder = 23
         end
       end
