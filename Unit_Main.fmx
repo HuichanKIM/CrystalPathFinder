@@ -60,9 +60,9 @@ object FormMain: TFormMain
         OnClick = Label_TitleClick
       end
       object Layout_Buttons: TLayout
-        Align = Right
-        Position.X = 503.000000000000000000
-        Size.Width = 385.000000000000000000
+        Align = MostRight
+        Position.X = 593.000000000000000000
+        Size.Width = 295.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
@@ -75,12 +75,12 @@ object FormMain: TFormMain
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 205.000000000000000000
+          Position.X = 115.000000000000000000
           Position.Y = 8.000000000000000000
           Size.Width = 80.000000000000000000
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 3
+          TabOrder = 2
           ParentShowHint = False
           ShowHint = True
         end
@@ -93,7 +93,7 @@ object FormMain: TFormMain
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 295.000000000000000000
+          Position.X = 205.000000000000000000
           Position.Y = 8.000000000000000000
           Size.Width = 80.000000000000000000
           Size.Height = 28.000000000000000000
@@ -117,10 +117,30 @@ object FormMain: TFormMain
           Size.Width = 100.000000000000000000
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 4
+          TabOrder = 3
           ParentShowHint = False
           ShowHint = True
         end
+      end
+      object Label_Performance: TLabel
+        Align = Client
+        StyledSettings = [Family, Size, Style]
+        Margins.Right = 10.000000000000000000
+        Size.Width = 173.000000000000000000
+        Size.Height = 44.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.FontColor = claLime
+        TextSettings.HorzAlign = Trailing
+        Text = 'Performance: 0 ms'
+        TabOrder = 2
+      end
+      object Layout_WeightGroup: TLayout
+        Align = Right
+        Position.X = 413.000000000000000000
+        Size.Width = 180.000000000000000000
+        Size.Height = 44.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 3
         object Button_Heighlight: TButton
           Align = Left
           CanFocus = False
@@ -129,59 +149,60 @@ object FormMain: TFormMain
           Margins.Top = 8.000000000000000000
           Margins.Right = 5.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 115.000000000000000000
+          Position.X = 5.000000000000000000
           Position.Y = 8.000000000000000000
-          Size.Width = 80.000000000000000000
+          Size.Width = 28.000000000000000000
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 2
-          Text = #55357#56520' Weight'
+          Text = #55357#56520
           ParentShowHint = False
           ShowHint = True
           OnMouseDown = Button_HeighlightMouseDown
           OnMouseUp = Button_HeighlightMouseUp
         end
-      end
-      object Label_Performance: TLabel
-        Align = Client
-        StyledSettings = [Family, Size, Style]
-        Margins.Right = 10.000000000000000000
-        Size.Width = 219.000000000000000000
-        Size.Height = 44.000000000000000000
-        Size.PlatformDefault = False
-        TextSettings.FontColor = claLime
-        TextSettings.HorzAlign = Trailing
-        Text = 'Performance: 0 ms'
-        TabOrder = 2
-      end
-      object Layout1: TLayout
-        Align = Right
-        Position.X = 459.000000000000000000
-        Size.Width = 44.000000000000000000
-        Size.Height = 44.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 3
-        object Rectangle_CustomColor2: TRectangle
-          Align = Center
-          Fill.Color = claGray
-          HitTest = False
-          Margins.Left = 1.000000000000000000
-          Margins.Top = 1.000000000000000000
-          Margins.Right = 1.000000000000000000
-          Margins.Bottom = 1.000000000000000000
-          Size.Width = 24.000000000000000000
-          Size.Height = 24.000000000000000000
+        object Button__CustomWeights: TButton
+          Action = Action_CustomWeight
+          Align = Client
+          CanFocus = False
+          ImageIndex = -1
+          Margins.Left = 5.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 5.000000000000000000
+          Margins.Bottom = 8.000000000000000000
+          Size.Width = 88.000000000000000000
+          Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
-          XRadius = 3.000000000000000000
-          YRadius = 3.000000000000000000
-          object Text1: TText
-            Align = Client
-            HitTest = False
-            Size.Width = 24.000000000000000000
-            Size.Height = 24.000000000000000000
+          TabOrder = 4
+        end
+        object Layout_CuatomWeight2: TLayout
+          Align = Right
+          Position.X = 136.000000000000000000
+          Size.Width = 44.000000000000000000
+          Size.Height = 44.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 3
+          object Rectangle_CustomWeight2: TRectangle
+            Align = Center
+            Fill.Color = claGray
+            Margins.Left = 1.000000000000000000
+            Margins.Top = 1.000000000000000000
+            Margins.Right = 1.000000000000000000
+            Margins.Bottom = 1.000000000000000000
+            Size.Width = 28.000000000000000000
+            Size.Height = 28.000000000000000000
             Size.PlatformDefault = False
-            Text = #55357#56487
-            TextSettings.FontColor = claDarkblue
+            XRadius = 3.000000000000000000
+            YRadius = 3.000000000000000000
+            object Text_CustomWeight2: TText
+              Align = Client
+              HitTest = False
+              Size.Width = 28.000000000000000000
+              Size.Height = 28.000000000000000000
+              Size.PlatformDefault = False
+              Text = #55357#56487
+              TextSettings.FontColor = claDarkblue
+            end
           end
         end
       end
@@ -227,15 +248,433 @@ object FormMain: TFormMain
         ShadowColor = claBlack
       end
     end
+    object Layout_CustomWeight: TLayout
+      Opacity = 0.899999976158142100
+      Position.X = 340.000000000000000000
+      Position.Y = 50.000000000000000000
+      Size.Width = 320.000000000000000000
+      Size.Height = 220.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 9
+      object Rectangle_CustomWeight: TRectangle
+        Align = Contents
+        Fill.Color = xFF16253D
+        PopupMenu = PopupMenu_Custom
+        Size.Width = 320.000000000000000000
+        Size.Height = 220.000000000000000000
+        Size.PlatformDefault = False
+        Stroke.Color = claDarkgray
+        XRadius = 10.000000000000000000
+        YRadius = 10.000000000000000000
+        object Layout_cwButtons: TLayout
+          Align = Bottom
+          Opacity = 0.800000011920929000
+          Margins.Bottom = 5.000000000000000000
+          Position.Y = 185.000000000000000000
+          Size.Width = 320.000000000000000000
+          Size.Height = 30.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 0
+          object Button_DeleteWeight: TButton
+            Action = Action_CustomDelete
+            Align = Right
+            CanFocus = False
+            ImageIndex = -1
+            Margins.Top = 5.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 5.000000000000000000
+            Position.X = 290.000000000000000000
+            Position.Y = 5.000000000000000000
+            Size.Width = 20.000000000000000000
+            Size.Height = 20.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 3
+            ParentShowHint = False
+            ShowHint = True
+            object Label4: TLabel
+              Action = Action_CustomDelete
+              Align = Center
+              Size.Width = 12.000000000000000000
+              Size.Height = 12.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 5
+            end
+          end
+          object Button_AllWeights: TButton
+            Action = Action_CustomApplyToAll
+            Align = Left
+            CanFocus = False
+            ImageIndex = -1
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 5.000000000000000000
+            Margins.Bottom = 5.000000000000000000
+            Position.X = 10.000000000000000000
+            Position.Y = 5.000000000000000000
+            Size.Width = 20.000000000000000000
+            Size.Height = 20.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            ParentShowHint = False
+            ShowHint = True
+          end
+          object Button_ApplyWeights: TButton
+            Action = Action_CustomApplayToMap
+            Align = Left
+            CanFocus = False
+            ImageIndex = -1
+            Margins.Left = 13.000000000000000000
+            Margins.Top = 5.000000000000000000
+            Margins.Bottom = 5.000000000000000000
+            Position.X = 153.000000000000000000
+            Position.Y = 5.000000000000000000
+            Size.Width = 100.000000000000000000
+            Size.Height = 20.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 1
+            ParentShowHint = False
+            ShowHint = True
+          end
+          object Button1: TButton
+            Action = Action_RestoreWeights
+            Align = Left
+            CanFocus = False
+            ImageIndex = -1
+            Margins.Left = 35.000000000000000000
+            Margins.Top = 5.000000000000000000
+            Margins.Bottom = 5.000000000000000000
+            Position.X = 65.000000000000000000
+            Position.Y = 5.000000000000000000
+            Size.Width = 75.000000000000000000
+            Size.Height = 20.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            ParentShowHint = False
+            ShowHint = True
+          end
+        end
+        object Label3: TLabel
+          Align = Top
+          Opacity = 0.800000011920929000
+          Margins.Left = 5.000000000000000000
+          Margins.Top = 5.000000000000000000
+          Margins.Right = 5.000000000000000000
+          Position.X = 5.000000000000000000
+          Position.Y = 5.000000000000000000
+          Size.Width = 310.000000000000000000
+          Size.Height = 25.000000000000000000
+          Size.PlatformDefault = False
+          Text = ' '#55357#57001' Custom Weights'
+          TabOrder = 1
+          object Button_Close: TButton
+            Align = Right
+            Hint = 'Close'
+            Margins.Top = 3.000000000000000000
+            Margins.Bottom = 3.000000000000000000
+            Position.X = 290.000000000000000000
+            Position.Y = 3.000000000000000000
+            Size.Width = 20.000000000000000000
+            Size.Height = 19.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 4
+            Text = 'X'
+            ParentShowHint = False
+            ShowHint = True
+            OnClick = Button_CloseClick
+          end
+        end
+        object Layout_CustomCat: TLayout
+          Align = Top
+          Position.Y = 30.000000000000000000
+          Size.Width = 320.000000000000000000
+          Size.Height = 24.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 2
+          object Layout_Category: TLayout
+            Align = Left
+            Margins.Left = 5.000000000000000000
+            Position.X = 5.000000000000000000
+            Size.Width = 140.000000000000000000
+            Size.Height = 24.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            object ComboBox_Category: TComboBox
+              Align = Client
+              DropDownCount = 15
+              Opacity = 0.800000011920929000
+              Size.Width = 115.000000000000000000
+              Size.Height = 24.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              OnChange = ComboBox_CategoryChange
+            end
+            object Button_Category: TButton
+              Action = Action_CustomRefreshCat
+              Align = Left
+              CanFocus = False
+              ImageIndex = -1
+              Margins.Right = 5.000000000000000000
+              Size.Width = 20.000000000000000000
+              Size.Height = 24.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              ParentShowHint = False
+              ShowHint = True
+            end
+          end
+          object Layout_Combo: TLayout
+            Align = Client
+            Margins.Left = 5.000000000000000000
+            Margins.Right = 5.000000000000000000
+            Size.Width = 165.000000000000000000
+            Size.Height = 24.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 3
+            object ComboBox_CustomWeight: TComboBox
+              Align = Client
+              DropDownCount = 15
+              Opacity = 0.800000011920929000
+              Size.Width = 140.000000000000000000
+              Size.Height = 24.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              OnChange = ComboBox_CustomWeightChange
+            end
+            object Button_ChangeName: TButton
+              Action = Action_CustonRename
+              Align = Left
+              CanFocus = False
+              ImageIndex = -1
+              Margins.Right = 5.000000000000000000
+              Size.Width = 20.000000000000000000
+              Size.Height = 24.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              ParentShowHint = False
+              ShowHint = True
+            end
+          end
+        end
+        object Layout_CustomValues: TLayout
+          Align = Client
+          Margins.Left = 5.000000000000000000
+          Margins.Top = 5.000000000000000000
+          Margins.Right = 5.000000000000000000
+          Margins.Bottom = 5.000000000000000000
+          PopupMenu = PopupMenu_Custom
+          Size.Width = 310.000000000000000000
+          Size.Height = 121.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 3
+          object Label7: TLabel
+            Opacity = 0.800000011920929000
+            Position.X = 10.000000000000000000
+            Position.Y = 6.000000000000000000
+            Size.Width = 65.000000000000000000
+            Size.Height = 17.000000000000000000
+            Size.PlatformDefault = False
+            Text = 'Change '#55357#56393
+            TabOrder = 2
+          end
+          object Rectangle_CustomValue: TRectangle
+            Fill.Color = xFF16253D
+            Position.X = 90.000000000000000000
+            Position.Y = 3.000000000000000000
+            Size.Width = 45.000000000000000000
+            Size.Height = 25.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Color = claDarkgray
+            XRadius = 5.000000000000000000
+            YRadius = 5.000000000000000000
+            object Text_CustomValue: TText
+              Align = Client
+              Size.Width = 45.000000000000000000
+              Size.Height = 25.000000000000000000
+              Size.PlatformDefault = False
+              Text = '255'
+              TextSettings.FontColor = claLightgray
+            end
+          end
+          object Label_CustomChanged: TLabel
+            StyledSettings = [Family, Style, FontColor]
+            Opacity = 0.600000023841857900
+            Position.X = 10.000000000000000000
+            Position.Y = 32.000000000000000000
+            Size.Width = 122.000000000000000000
+            Size.Height = 17.000000000000000000
+            Size.PlatformDefault = False
+            TextSettings.Font.Size = 10.000000000000000000
+            TextSettings.HorzAlign = Trailing
+            Text = '...'
+            TabOrder = 4
+          end
+          object Layout1: TLayout
+            Align = Right
+            Position.X = 145.000000000000000000
+            Size.Width = 165.000000000000000000
+            Size.Height = 121.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            object ListBox_CustomWeights: TListBox
+              Align = Client
+              Opacity = 0.800000011920929000
+              Margins.Top = 3.000000000000000000
+              PopupMenu = PopupMenu_Custom
+              Size.Width = 165.000000000000000000
+              Size.Height = 101.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Columns = 3
+              DisableFocusEffect = True
+              DefaultItemStyles.ItemStyle = ''
+              DefaultItemStyles.GroupHeaderStyle = ''
+              DefaultItemStyles.GroupFooterStyle = ''
+              Viewport.Width = 161.000000000000000000
+              Viewport.Height = 97.000000000000000000
+            end
+            object Label_TargetValues: TLabel
+              Align = Top
+              Opacity = 0.800000011920929000
+              Size.Width = 165.000000000000000000
+              Size.Height = 17.000000000000000000
+              Size.PlatformDefault = False
+              TextSettings.HorzAlign = Trailing
+              Text = 'Target Values :'
+              TabOrder = 1
+            end
+          end
+          object TrackBar_CustomOffset: TTrackBar
+            CanParentFocus = True
+            Max = 30.000000000000000000
+            Min = 3.000000000000000000
+            Orientation = Horizontal
+            Position.X = 41.000000000000000000
+            Position.Y = 86.000000000000000000
+            Size.Width = 94.000000000000000000
+            Size.Height = 24.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 6
+            Value = 10.000000000000000000
+            OnChange = TrackBar_CustomOffsetChange
+          end
+          object Label_CustomOffset: TLabel
+            StyledSettings = [Family, Style, FontColor]
+            Opacity = 0.600000023841857900
+            Position.X = 10.000000000000000000
+            Position.Y = 64.000000000000000000
+            Size.Width = 121.000000000000000000
+            Size.Height = 17.000000000000000000
+            Size.PlatformDefault = False
+            TextSettings.Font.Size = 10.000000000000000000
+            Text = 'Custom Range Offset'
+            TabOrder = 1
+          end
+          object Label_CustomOffsetVal: TLabel
+            StyledSettings = [Family, Style, FontColor]
+            Opacity = 0.600000023841857900
+            Position.X = 15.000000000000000000
+            Position.Y = 90.000000000000000000
+            Size.Width = 19.000000000000000000
+            Size.Height = 17.000000000000000000
+            Size.PlatformDefault = False
+            TextSettings.Font.Size = 10.000000000000000000
+            TextSettings.HorzAlign = Trailing
+            Text = '10'
+            TabOrder = 0
+          end
+        end
+      end
+      object ShadowEffect2: TShadowEffect
+        Distance = 3.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.600000023841857900
+        ShadowColor = claBlack
+      end
+    end
+    object Layout_InputQuery: TLayout
+      Opacity = 0.899999976158142100
+      Position.X = 300.000000000000000000
+      Position.Y = 400.000000000000000000
+      Size.Width = 300.000000000000000000
+      Size.Height = 130.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 6
+      object Rectangle1: TRectangle
+        Align = Contents
+        Fill.Color = xFF16253D
+        Size.Width = 300.000000000000000000
+        Size.Height = 130.000000000000000000
+        Size.PlatformDefault = False
+        Stroke.Color = claDarkgray
+        XRadius = 10.000000000000000000
+        YRadius = 10.000000000000000000
+        object Label5: TLabel
+          Align = Top
+          Margins.Left = 10.000000000000000000
+          Margins.Top = 10.000000000000000000
+          Margins.Right = 10.000000000000000000
+          Position.X = 10.000000000000000000
+          Position.Y = 10.000000000000000000
+          Size.Width = 280.000000000000000000
+          Size.Height = 17.000000000000000000
+          Size.PlatformDefault = False
+          Text = #55357#56462' Input Query'
+          TabOrder = 0
+        end
+        object Label6: TLabel
+          StyledSettings = [Family, Size, Style]
+          Position.X = 30.000000000000000000
+          Position.Y = 47.000000000000000000
+          Size.Width = 76.000000000000000000
+          Size.Height = 17.000000000000000000
+          Size.PlatformDefault = False
+          TextSettings.FontColor = claLightgray
+          Text = 'New Name'
+          TabOrder = 1
+        end
+        object Edit_InputName: TEdit
+          Touch.InteractiveGestures = [LongTap, DoubleTap]
+          TabOrder = 2
+          Position.X = 104.000000000000000000
+          Position.Y = 44.000000000000000000
+          Size.Width = 172.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+        end
+        object Button_IQ_OK: TButton
+          Default = True
+          Position.X = 160.000000000000000000
+          Position.Y = 88.000000000000000000
+          Size.Width = 53.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 3
+          Text = 'OK'
+          OnClick = Button_IQ_OKClick
+        end
+        object Button_IQ_Cancel: TButton
+          CanFocus = False
+          Position.X = 228.000000000000000000
+          Position.Y = 88.000000000000000000
+          Size.Width = 48.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 4
+          Text = 'Cancel'
+          OnClick = Button_IQ_CancelClick
+        end
+      end
+    end
     object MultiView_Options: TMultiView
       DrawerOptions.Placement = Right
       NavigationPaneOptions.CollapsedWidth = 225.000000000000000000
+      ShadowOptions.Opacity = 0.500000000000000000
       OnShown = MultiView_OptionsShown
       Size.Width = 250.000000000000000000
       Size.Height = 50.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 1
-      object MultiView_Popup: TRectangle
+      object Rectangle_Options: TRectangle
         Align = Client
         Fill.Color = xFF16253D
         Size.Width = 225.000000000000000000
@@ -365,7 +804,7 @@ object FormMain: TFormMain
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 11
-          Value = 100.000000000000000000
+          Value = 255.000000000000000000
           ParentShowHint = False
           ShowHint = True
           OnChange = TrackBar_CellWeightChange
@@ -512,6 +951,7 @@ object FormMain: TFormMain
           Size.Height = 1.000000000000000000
           Size.PlatformDefault = False
           Stroke.Color = claSilver
+          Stroke.Dash = Dot
         end
         object Line2: TLine
           LineType = Diagonal
@@ -521,6 +961,7 @@ object FormMain: TFormMain
           Size.Height = 1.000000000000000000
           Size.PlatformDefault = False
           Stroke.Color = claSilver
+          Stroke.Dash = Dot
         end
         object Layout_Filters: TLayout
           Position.X = 120.000000000000000000
@@ -638,6 +1079,7 @@ object FormMain: TFormMain
           Size.Height = 1.000000000000000000
           Size.PlatformDefault = False
           Stroke.Color = claSilver
+          Stroke.Dash = Dot
         end
         object TrackBar_WallFactor: TTrackBar
           CanParentFocus = True
@@ -35101,17 +35543,70 @@ object FormMain: TFormMain
           6F720708636C6157686974650C50726573736564436F6C6F720708636C615768
           697465000000}
       end>
-    Left = 306
-    Top = 134
+    Left = 490
+    Top = 614
   end
   object OpenDialog_Map: TOpenDialog
-    Left = 304
-    Top = 228
+    Left = 336
+    Top = 644
+  end
+  object PopupMenu_Custom: TPopupMenu
+    Left = 692
+    Top = 692
+    object pm_LoadFromFile: TMenuItem
+      Text = #55357#56513' Load From Category'
+      OnClick = pm_LoadFromFileClick
+    end
+    object pm_SaveToFile: TMenuItem
+      Text = #55357#56510' Save To Category'
+      OnClick = pm_SaveToFileClick
+    end
+    object MenuItem1: TMenuItem
+      Text = '-'
+    end
+    object pm_ApplyToMap: TMenuItem
+      Text = #55357#56960' Apply To Map'
+      OnClick = pm_ApplyToMapClick
+    end
+    object pm_ChangeName: TMenuItem
+      Text = #9999#65039' Change Name'
+      OnClick = pm_ChangeNameClick
+    end
+    object pm_Delete: TMenuItem
+      Text = #10060' Delete Item'
+      OnClick = pm_DeleteClick
+    end
+    object pm_ApplyToAll: TMenuItem
+      Text = #55357#56550' Apply To All'
+      OnClick = pm_ApplyToAllClick
+    end
+    object MenuItem2: TMenuItem
+      Text = '-'
+    end
+    object pm_Refresh: TMenuItem
+      Text = #55357#56580' Refresh'
+      OnClick = pm_RefreshClick
+    end
+  end
+  object SaveDialog_Custom: TSaveDialog
+    DefaultExt = 'json'
+    Filter = 'weights (*.json)|*.json'
+    Options = [ofReadOnly, ofOverwritePrompt, ofHideReadOnly, ofNoChangeDir, ofEnableSizing]
+    Title = 'Load weights data'
+    Left = 556
+    Top = 676
+  end
+  object OpenDialog_Custom: TOpenDialog
+    DefaultExt = 'json'
+    Filter = 'weights (*.json)|*.json'
+    Title = 'Save weights data'
+    Left = 636
+    Top = 620
   end
   object ActionList1: TActionList
     OnUpdate = ActionList1Update
-    Left = 312
-    Top = 332
+    Left = 416
+    Top = 620
     object Action_Screenshot: TAction
       Text = 'Action_Screenshot'
       ShortCut = 16467
@@ -35180,6 +35675,40 @@ object FormMain: TFormMain
       Text = 'Action_SmoothLine'
       ShortCut = 16465
       OnExecute = Action_SmoothLineExecute
+    end
+    object Action_CustomWeight: TAction
+      Text = #55357#57001' C-Weights'
+      ShortCut = 16471
+      OnExecute = Action_CustomWeightExecute
+    end
+    object Action_CustomApplayToMap: TAction
+      Text = #55357#56960' Apply to'
+      Hint = 'Apply to Map'
+      OnExecute = Action_CustomApplayToMapExecute
+    end
+    object Action_CustomDelete: TAction
+      Text = #10060
+      Hint = 'Delete Selected Item'
+      OnExecute = Action_CustomDeleteExecute
+    end
+    object Action_CustonRename: TAction
+      Text = #9999#65039
+      Hint = 'Change the Name'
+      OnExecute = Action_CustonRenameExecute
+    end
+    object Action_CustomApplyToAll: TAction
+      Text = #55357#56550
+      Hint = 'Apply to All'
+      OnExecute = Action_CustomApplyToAllExecute
+    end
+    object Action_CustomRefreshCat: TAction
+      Text = #9881#65039
+      Hint = 'Refresh Category'
+      OnExecute = Action_CustomRefreshCatExecute
+    end
+    object Action_RestoreWeights: TAction
+      Text = #9851#65039' Restore'
+      OnExecute = Action_RestoreWeightsExecute
     end
   end
 end

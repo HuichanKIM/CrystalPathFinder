@@ -1,4 +1,4 @@
-unit uCommons;
+ï»¿unit uCommons;
 
 interface
 
@@ -75,45 +75,51 @@ uses
 
 { Message DIalog }
 
+{
+
+[ Pro Tips ]
+â€¢ Terrain is automatically analyzed based on colors (e.g., dark/blue for walls, green for high-cost, gray for roads).
+â€¢ Use the 'Options' menu to change grid type (Hexagonal, Diagonal) and adjust tile size.
+}
+
 const
-  C_ShortKeys = '''
+    C_ShortKeys = '''
 
-                *** Shortcut Keys [Shift-key, Key-Char] ***
-                [ Ctrl+A, a ] Show Cell Weights
-                [ Ctrl+B, b ] Center Map
-                [ Ctrl+F, f ] Filter Buildings
-                [ Ctrl+G, g ] Show Grids
-                [ Ctrl+M, m ] Load Map
-                [ Ctrl+O, o ] Options
-                [ Ctrl+Q, q ] Draw SmoothLine Path
-                [ Ctrl+R, r ] Reset
-                [ Ctrl+S, s ] SnapShot
-                [ Ctrl+H, h ] Help
-                [ Space-Key ] Batch change Weight of Cell (+ ML/MR Button)
+                  *** Shortcut Keys [Ctrl / Key] ***
+                  [ Ctrl+A, a ] Toggle Cell Weights (Heatmap)
+                  [ Ctrl+B, b ] Center Map
+                  [ Ctrl+F, f ] Toggle Building Filter
+                  [ Ctrl+G, g ] Toggle Grids
+                  [ Ctrl+M, m ] Load Map Image
+                  [ Ctrl+O, o ] Open Options
+                  [ Ctrl+Q, q ] Draw Smooth Path Line
+                  [ Ctrl+R, r ] Reset Map
+                  [ Ctrl+S, s ] Save Snapshot
+                  [ Ctrl+W, w ] Edit Custom Weights
+                  [ Ctrl+H, h ] Show Help
+                  [ Spacebar  ] Batch Change Cell Weight (+ Left/Right Click)
+                  [ ESC       ] Close Current Toolbax or Restore Map backup.
 
-                *** Mouse Actions ***
-                [ ML-Down   ] Drag / Pan  ( if Space-Key then Bypass)
-                [ MR-Down   ] Change Cell Weight (0 <-> 255)
-                [ MR+Shift  ] Sequencial Change Cell Weight -> 255
-                [ MR+ALt    ] Sequencial Change Cell Weight -> 0 (*)
-                [ Wheel     ] Zoom
+                  *** Mouse Actions ***
+                  [ Left Drag   ] Pan Map (Disabled if Spacebar is held)
+                  [ Right Click ] Toggle Cell Weight (0 <-> 255)
+                  [ Shift+Right ] Sequential Paint: Weight -> 255 (Wall)
+                  [ Alt+Right   ] Sequential Paint: Weight -> 0 (*)
+                  [ Mouse Wheel ] Zoom In / Zoom Out
 
-                *** KeyBoard (COntrol Map Screen) ***
-                [ Left      ] Move to Left
-                [ Right     ] Move to Right
-                [ Up        ] Move to Up
-                [ Down      ] Move to Down
-                [ Ctrl+Up   ] Zoom In
-                [ Ctrl+Down ] Zoom Out
+                  *** Keyboard (Map Screen Controls) ***
+                  [ Left Arrow  ] Pan Left
+                  [ Right Arrow ] Pan Right
+                  [ Up Arrow    ] Pan Up
+                  [ Down Arrow  ] Pan Down
+                  [ Ctrl+Up     ] Zoom In  (or Increase Weight Scale)
+                  [ Ctrl+Down   ] Zoom Out (or Decrease Weight Scale)
 
-                (*) by Value of <Edit Weight>
-
-                --------------------------
-                Inspired by
-                https://github.com/d-mozulyov/CrystalPathFinding
-                with the help of AI Gemini, Claude
-
-              ''';
+                  (*) Value depends on the <Cell Weight> slider setting.
+                  -----------------------------------------------------------
+                  Inspired by https://github.com/d-mozulyov/CrystalPathFinding
+                  Developed with the help of AI (Gemini, Claude)
+                ''';
 
 { Replacing anonymous methods ------------------------------------------------ }
 
@@ -143,6 +149,8 @@ end;
 { Help / Info ---------------------------------------------------------------- }
 
 procedure ShowFixedMsg(const ATitle, AMsg: string);
+const
+  c_Welcome = ' - Welcome to Crystal Path Finder';
 begin
   var _MsgForm := TForm.CreateNew(Application);
   var _Handler: TKeyHandler := TKeyHandler.Create(_MsgForm);
@@ -154,10 +162,10 @@ begin
 
     with _MsgForm do
     begin
-      Caption := 'Crystal Path Finder - 2026';
+      if ATitle <> '' then Caption := ' '+ATitle+c_Welcome
+                      else Caption := 'Crystal Path Finder - 2026';
       Width := 550;
       Height := 700;
-      BorderIcons := [];
       Position := TFormPosition.MainFormCenter;
       BorderStyle := TFmxFormBorderStyle.Single; // None - No Title
       BorderIcons := [];
@@ -173,11 +181,12 @@ begin
       Margins.Rect := TRectF.Create(10, 10, 10, 50);
       ReadOnly := True;
       HitTest := False;
-      Text := C_ShortKeys;
+      if AMsg <> '' then Text := AMsg
+                    else Text := C_ShortKeys;
 
+      StyledSettings := StyledSettings - [TStyledSetting.Family, TStyledSetting.Size];
       TextSettings.Font.Family := 'Consolas';
       TextSettings.Font.Size := 14;
-      StyledSettings := StyledSettings - [TStyledSetting.Family, TStyledSetting.Size];
     end;
 
     var _OkBtn := TButton.Create(_MsgForm);
@@ -188,8 +197,10 @@ begin
       Width := 80;
       Height := 30;
       CanFocus := True;
-      Position.X := (_MsgForm.Width - _OkBtn.Width) / 2;
+
+      Position.X := (_MsgForm.Width - Width) / 2;
       Position.Y := _MsgForm.Height - 75;
+      Anchors :=[TAnchorKind.akBottom];
       Default := True;
 
       ModalResult := mrOk;
@@ -376,8 +387,8 @@ begin
   // Normalize angle to 0..1 range for hue
   var _Hue := Frac((Angle / (2 * Pi)) + 0.5);   // Hue ranging from 0.0 to 1.0
 
-  // 1. HSL ¡æ RGB conversion (System.UIConsts unit required)
-  // Hue: 0..1, Saturation: 0.85, Lightness: 0.65 ¡æ vivid but not too bright
+  // 1. HSL â†’ RGB conversion (System.UIConsts unit required)
+  // Hue: 0..1, Saturation: 0.85, Lightness: 0.65 â†’ vivid but not too bright
   Result := SYstem.UIConsts.HSLtoRGB(_Hue, 0.85, 0.65);     // Alpha = $FF Auto apply
 
   // 2. with TAlphaColorF
@@ -390,8 +401,8 @@ begin
   //// Normalize angle to 0..1 range for hue
   var _Hue := Frac((Angle / (2 * Pi)) + 0.5);  // Hue ranging from 0.0 to 1.0
 
-  // 1. HSL ¡æ RGB conversion (System.UIConsts unit required)
-  // Hue: 0..1, Saturation: 0.85, Lightness: 0.65 ¡æ vivid but not too bright
+  // 1. HSL â†’ RGB conversion (System.UIConsts unit required)
+  // Hue: 0..1, Saturation: 0.85, Lightness: 0.65 â†’ vivid but not too bright
   Result := SYstem.UIConsts.HSLtoRGB(_Hue, 0.85, 0.65);     // Alpha = $FF  Auto apply
 
   // 2. with TAlphaColorF

@@ -42,7 +42,8 @@ uses
   FMX.Effects,
   FMX.Colors,
   //
-  CrystalPathFinding_ex;
+  uWeightStackManager,
+  CrystalPathFinding_ex, FMX.Menus;
 
 
 type
@@ -60,8 +61,12 @@ type
   end;
 
 type
+  TInputCloseEvent = reference to procedure(const AResult: string; AConfirmed: Boolean);
+
+type
   { Enum to manage mouse interaction states including custom weight painting }
   TDragMode = (None, StartPoint, FinishPoint, PanMap, EditWeight);
+  TMapCategory = (mcDefault=0, mcMegacity, mcCity, mcCountry, mcMountains, mcOthers);
 
   TFormMain = class(TForm)
     PaintBox_Map: TPaintBox;
@@ -84,6 +89,7 @@ type
     Action_ScreenCap: TAction;
     Action_CenterMap: TAction;
     Action_SmoothLine: TAction;
+    Action_CustomWeight: TAction;
     ComboBox_Kind: TComboBox;
     CheckBox_AddTerrain: TCheckBox;
     CheckBox_WeightCell: TCheckBox;
@@ -109,7 +115,7 @@ type
     Label_WallOffset: TLabel;
     StatusBar_Map: TStatusBar;
     MultiView_Options: TMultiView;
-    MultiView_Popup: TRectangle;
+    Rectangle_Options: TRectangle;
     OpenDialog_Map: TOpenDialog;
     Button_Options: TButton;
     Button_LoadMap: TButton;
@@ -124,7 +130,7 @@ type
     Rectangle_PathColors: TRectangle;
     Rectangle_CustomColor1: TRectangle;
     Rectangle_Custom: TRectangle;
-    Rectangle_CustomColor2: TRectangle;
+    Rectangle_CustomWeight2: TRectangle;
     Rectangle_Green: TRectangle;
     Rectangle_GridCOlor: TRectangle;
     RadioButton_Filter0: TRadioButton;
@@ -132,14 +138,71 @@ type
     Path_Compass: TPath;
     ColorComboBox_Grid: TColorComboBox;
     ShadowEffect1: TShadowEffect;
-    Layout1: TLayout;
+    Layout_CuatomWeight2: TLayout;
     Label2: TLabel;
     Label1: TLabel;
     Line1: TLine;
     Line2: TLine;
-    Text1: TText;
+    Text_CustomWeight2: TText;
     Text2: TText;
     Line3: TLine;
+    Rectangle_CustomWeight: TRectangle;
+    ListBox_CustomWeights: TListBox;
+    Button_DeleteWeight: TButton;
+    Layout_cwButtons: TLayout;
+    ComboBox_CustomWeight: TComboBox;
+    Label3: TLabel;
+    Button_Close: TButton;
+    Button_AllWeights: TButton;
+    Button_ApplyWeights: TButton;
+    Label4: TLabel;
+    Layout_Combo: TLayout;
+    Button_ChangeName: TButton;
+    Layout_WeightGroup: TLayout;
+    Button__CustomWeights: TButton;
+    Layout_CustomWeight: TLayout;
+    Layout_InputQuery: TLayout;
+    Rectangle1: TRectangle;
+    Label5: TLabel;
+    Label6: TLabel;
+    { Stack of Weights Manager }
+    Edit_InputName: TEdit;
+    Button_IQ_OK: TButton;
+    Button_IQ_Cancel: TButton;
+    Layout_Category: TLayout;
+    ComboBox_Category: TComboBox;
+    Button_Category: TButton;
+    PopupMenu_Custom: TPopupMenu;
+    pm_ChangeName: TMenuItem;
+    pm_ApplyToMap: TMenuItem;
+    pm_Delete: TMenuItem;
+    pm_ApplyToAll: TMenuItem;
+    pm_SaveToFile: TMenuItem;
+    pm_LoadFromFile: TMenuItem;
+    Action_CustomApplayToMap: TAction;
+    Action_CustomDelete: TAction;
+    Action_CustonRename: TAction;
+    Action_CustomApplyToAll: TAction;
+    Action_CustomRefreshCat: TAction;
+    SaveDialog_Custom: TSaveDialog;
+    OpenDialog_Custom: TOpenDialog;
+    MenuItem1: TMenuItem;
+    Layout_CustomCat: TLayout;
+    Layout_CustomValues: TLayout;
+    Label7: TLabel;
+    Rectangle_CustomValue: TRectangle;
+    Text_CustomValue: TText;
+    Label_TargetValues: TLabel;
+    MenuItem2: TMenuItem;
+    pm_Refresh: TMenuItem;
+    Action_RestoreWeights: TAction;
+    Button1: TButton;
+    Label_CustomChanged: TLabel;
+    Layout1: TLayout;
+    TrackBar_CustomOffset: TTrackBar;
+    Label_CustomOffset: TLabel;
+    Label_CustomOffsetVal: TLabel;
+    ShadowEffect2: TShadowEffect;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormDestroy(Sender: TObject);
@@ -156,6 +219,9 @@ type
     procedure Action_FIlterBuildsExecute(Sender: TObject);
     procedure Action_CustomColorExecute(Sender: TObject);
     procedure Action_ScreenCapExecute(Sender: TObject);
+    procedure Action_OptionsExecute(Sender: TObject);
+    procedure Action_SmoothLineExecute(Sender: TObject);
+    procedure Action_CustomWeightExecute(Sender: TObject);
     procedure PaintBox_MapMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure PaintBox_MapMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
     procedure PaintBox_MapPaint(Sender: TObject; Canvas: TCanvas);
@@ -165,6 +231,7 @@ type
     procedure TrackBar_TileSizeTracking(Sender: TObject);
     procedure TrackBar_CellWeightChange(Sender: TObject);
     procedure TrackBar_TileSizeChange(Sender: TObject);
+    procedure TrackBar_WallFactorChange(Sender: TObject);
     procedure ComboBox_KindChange(Sender: TObject);
     procedure ColorComboBox_GridChange(Sender: TObject);
     procedure CheckBox_WeightsChange(Sender: TObject);
@@ -177,16 +244,36 @@ type
     procedure Label_TitleClick(Sender: TObject);
     procedure Rectangle_YellowClick(Sender: TObject);
     procedure RadioButton_Filter0Change(Sender: TObject);
+    { Stack of Weights Manager }
     procedure MultiView_OptionsShown(Sender: TObject);
-    procedure Action_OptionsExecute(Sender: TObject);
-    procedure Action_SmoothLineExecute(Sender: TObject);
-    procedure TrackBar_WallFactorChange(Sender: TObject);
+    procedure ComboBox_CustomWeightChange(Sender: TObject);
+    procedure Button_CloseClick(Sender: TObject);
+    procedure MultiView_WeightsShown(Sender: TObject);
+    procedure Button_IQ_CancelClick(Sender: TObject);
+    procedure Button_IQ_OKClick(Sender: TObject);
+    procedure ComboBox_CategoryChange(Sender: TObject);
+    procedure pm_ApplyToMapClick(Sender: TObject);
+    procedure pm_ChangeNameClick(Sender: TObject);
+    procedure pm_DeleteClick(Sender: TObject);
+    procedure pm_ApplyToAllClick(Sender: TObject);
+    procedure pm_SaveToFileClick(Sender: TObject);
+    procedure pm_LoadFromFileClick(Sender: TObject);
+    procedure Action_CustomApplayToMapExecute(Sender: TObject);
+    procedure Action_CustomDeleteExecute(Sender: TObject);
+    procedure Action_CustonRenameExecute(Sender: TObject);
+    procedure Action_CustomApplyToAllExecute(Sender: TObject);
+    procedure Action_CustomRefreshCatExecute(Sender: TObject);
+    procedure pm_RefreshClick(Sender: TObject);
+    procedure Action_RestoreWeightsExecute(Sender: TObject);
+    procedure TrackBar_CustomOffsetChange(Sender: TObject);
   private
     FPathFinder: TTileMap;
     FMapWeights: TArray<Byte>;
     FCurrentPath: TTileMapPath;
+    FBackupPath: TTileMapPath;
     FBackgroundBitmap: TBitmap;
     FTileMapkind: TTileMapKind;
+    FMapCategory: TMapCategory;
 
     FViewOffset: TPointF;
     FCellSize: Single;
@@ -223,6 +310,12 @@ type
 
     FFirstTileFlag: Boolean;
     FunnyFlag: Integer;
+    { Stack of Weights Manager }
+    FWeightStackManager: TWeightStackManager;
+    FStackFileName: string;
+    FQuery_Container: TLayout;
+    FQuery_Mode: Integer;
+    FCustomOffSet: Integer;
 
     procedure LoadIniOptions;
     procedure SaveIniOptions;
@@ -230,7 +323,7 @@ type
     procedure InitializeDrawPath(const ADefault: Boolean = False);
     procedure UpdatePath(const AUpdateStatus: Boolean = False);
 
-    function ScreenToGridF(AX, AY: Single): TPoint;
+    function ScreenToGridF(const AX, AY: Single): TPoint;
     procedure ScreenToGridP(const AScreenPos: TPointF; out AGX, AGY: Integer);
     function GridToScreenF(const AGridPos: TPoint): TPointF;
     procedure GridToScreenP(const AGX, AGY: Integer; out AScreenPos: TPointF);
@@ -254,7 +347,7 @@ type
     procedure DrawSmoothPath(ACanvas: TCanvas; const ASmoothFlag: Boolean = False);
     procedure DrawHeatmap(Canvas: TCanvas);
 
-    procedure ApplyTerrainCustomization(const AWeight, AWeightFlag: Byte; const AValue: Integer = 0);
+    procedure ApplyTerrainCustomization(const AFlag: Integer; const AStackName: string; const AWeight: Byte; const AValue: Integer = 0);
     procedure RefineWallGrid;
     procedure RefineWallGrid_hex;
     function IsHexLinePassable(const AP1, AP2: TPoint): Boolean;
@@ -270,14 +363,23 @@ type
     procedure UpdateStatusLabel();
     procedure SaveScreenshot(const ADialogFlag: Boolean = False);
     procedure AnimationFinishedEvent(Sender: TObject);
-    procedure SetupMultiViewPopup;
+
+    procedure SetupMultiViewOptionsPopup;
+    procedure SetupMultiViewWeightsPopup;
+
     procedure SetPathColorControl(const AFlag: Integer; const ARepaint: Boolean = True);
     procedure ApplyTerrainTraining(const AGX, AGY: Integer);
     procedure SetCustomColorFlag(const Value: Boolean);
     procedure SetCustomColor(const Value: TAlphaColor);
     procedure ShowToastAlert(const AMsg: string);
     procedure SetWallDefineVal(const Value: Integer);
+    procedure BackupCurrentPath;
+    { Stack of Weights Manager }
+    procedure RefreshStackManager(const AFlag: Integer = 0; const AName: string = '');
+    procedure HideCustomWeight(const AFlag: Integer);
+    procedure SetMapCategory(const Value: TMapCategory);
   public
+    property MapCategory: TMapCategory  read FMapCategory       write SetMapCategory;
     property WallDefineVal: Integer     read FWallDefineVal     write SetWallDefineVal;
     property ZoomRatio: Single          read FZoomRatio         write SetZoomRatio;
     property SetCellSize: Single        read FSetCellSize       write SetSetCellSize;
@@ -299,6 +401,7 @@ uses
   System.IniFiles,
   System.SyncObjs,
   FMX.Platform,
+  FMX.DialogService,
   FMX.Ani,
   FMX.Utils;
 
@@ -319,9 +422,12 @@ const
                   TAlphaColorRec.Yellow, TAlphaColorRec.White,TAlphaColorRec.Blue,
                   TAlphaColorRec.Red,TAlphaColorRec.Green);
 
+  C_Category: array [TMapCategory] of string = ('Default', 'MegaCity', 'City','Country','Mountains','Others');
+  C_CatJson:  array [TMapCategory] of string = ('cpf_stack.json', 'MegaCity.json', 'City.json','Country.json','Mountains.json','Others.json');
+
 var
-  GWeightColorTable1: array [0..255] of TAlphaColor;
-  GWeightColorTable2: array [0..255] of TAlphaColor;
+  V_GWeightColorTable1: array [0..255] of TAlphaColor;
+  V_GWeightColorTable2: array [0..255] of TAlphaColor;
 
 const
   C_HEX_OFFSETS: array [0..1, 0..5, 0..1] of ShortInt = (
@@ -333,18 +439,18 @@ procedure InitWeightColorTable1;
 begin
   for var _i := 0 to 255 do
   begin
-    if _i > 180 then GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Red,          130) else
-    if _i > 120 then GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Orange,       100) else
-    if _i > 60  then GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Yellow,       70)
-                else GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Greenyellow,  40);
+    if _i > 180 then V_GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Red,          130) else
+    if _i > 120 then V_GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Orange,       100) else
+    if _i > 60  then V_GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Yellow,       70)
+                else V_GWeightColorTable1[_i] := MakeAlphaColor(TAlphaColors.Greenyellow,  40);
   end;
 
   { Blue (0) -> Green (85) -> Yellow (170) -> Red (255) Heatmap Color}
   for var _j := 0 to 255 do
   begin
     if _j < 128
-      then GWeightColorTable2[_j] := System.UIConsts.MakeColor(0, _j * 2, 255 - (_j * 2), 120)
-      else GWeightColorTable2[_j] := System.UIConsts.MakeColor((_j - 128) * 2, 255 - ((_j - 128) * 2), 0, 120);
+      then V_GWeightColorTable2[_j] := System.UIConsts.MakeColor(0, _j * 2, 255 - (_j * 2), 120)
+      else V_GWeightColorTable2[_j] := System.UIConsts.MakeColor((_j - 128) * 2, 255 - ((_j - 128) * 2), 0, 120);
   end;
 end;
 
@@ -398,9 +504,13 @@ begin
   CheckBox_AddTerrain.IsChecked :=  True;
   Label_Performance.Visible :=      False;
   CheckBox_ShowGrid.IsChecked :=    True;
-  Rectangle_CustomColor2.Visible := False;
+  Text_CustomWeight2.Visible :=     False;
   Path_Compass.Visible :=           False;
   Button_LoadMap.Default :=         True;
+
+  Layout_WeightGroup.Visible :=     False;
+  Layout_CustomWeight.Visible :=    False;
+  Layout_InputQuery.Visible :=      False;
 
   FPathColor := TAlphaColors.Yellow;
 
@@ -416,8 +526,20 @@ begin
     OnChange  := ComboBox_KindChange;
   end;
 
+  with ComboBox_Category do
+  begin
+    OnChange := nil;
+    items.Clear;
+    for var _c := Low(C_Category) to High(C_Category) do
+      Items.Add(C_Category[_c]);
+    ItemIndex := 0;                                                             {  = Default Map Kind = Hexagonal }
+    OnChange  := ComboBox_CategoryChange;
+  end;
+
   FTileMapkind := TTileMapKind(3);
 
+  FCustomOffSet := 10;
+  FQuery_Mode := 0;
   TrackBar_Weight.Value := 50;
   Label_WeightScale.Text := Format('📍 Default Weight Scale %.2f', [TrackBar_Weight.Value / 100]);
   Label_PathTileSize.Text := '🏁 MAP Tile Size (Default) : '+Trunc(C_CellSizeDefault).ToString;
@@ -428,8 +550,17 @@ begin
   FFilterIndex := 0;
   FWallDefineVal := 3;
 
+  FMapCategory := TMapCategory.mcDefault;
+  // ------------------------------------------------------------------------ //
   LoadIniOptions();
-  SetupMultiViewPopup;
+  // ------------------------------------------------------------------------ //
+  ComboBox_Category.ItemIndex := Ord(FMapCategory);
+  FStackFileName := ExtractFilePath(ParamStr(0))+C_CatJson[FMapCategory];
+  FWeightStackManager := TWeightStackManager.Create(C_Category[FMapCategory], FStackFileName);
+  TrackBar_CustomOffset.Value := FCustomOffSet;
+
+  SetupMultiViewOptionsPopup;
+  SetupMultiViewWeightsPopup;
   InitWeightColorTable1;
 
   { Create initial small map to be resized in InitializeGrid }
@@ -447,7 +578,9 @@ end;
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
   SaveIniOptions();
+  FWeightStackManager.Free;
   FCurrentPath.Release;
+  FBackupPath.Release;
   FPathFinder.Free;
   FBackgroundBitmap.Free;
 end;
@@ -473,9 +606,12 @@ begin
                   _ColorStr2       := ReadString ('UIOptions',   'GridColor',       _ColorStr2);
     ColorComboBox_Grid.Color       := StringToAlphaColor(_ColorStr2);
     FGridStrokeThick               := ReadFloat  ('UIOptions',   'GridStrokeWidth', 0.8);
+                  var _catindex    := ReadInteger('MapParams',   'MapCategory',     0);
+    FMapCategory := TMapCategory(_catindex);
     TrackBar_Weight.Value          := ReadFloat  ('MapParams',   'SetWeight',       50.0);
+    TrackBar_CustomOffset.Value    := ReadInteger('MapParams',   'CustomOffset',    10);      // Update -> FCustomOffSet
     TrackBar_TileSize.Value        := ReadFloat  ('MapParams',   'Tilesize',        C_CellSizeDefault);
-    TrackBar_CellWeight.Value      := ReadFloat  ('MapParams',   'CellWeight',      100.0);
+    TrackBar_CellWeight.Value      := ReadFloat  ('MapParams',   'CellWeight',      255);
     FWallDefineVal                 := ReadInteger('MapParams',   'WallDefine',      3);
     TrackBar_WallFactor.Value      := FWallDefineVal;
     ComboBox_Kind.ItemIndex        := ReadInteger('MapParams',   'MapKind',         3);
@@ -502,8 +638,10 @@ begin
     WriteBool   ('UIOptions',    'ShowGrid',        CheckBox_ShowGrid.IsChecked);
     WriteString ('UIOptions',    'PathColor',       _ColorStr1);
     WriteString ('UIOptions',    'GridColor',       _ColorStr2);
-    ReadFloat   ('UIOptions',    'GridStrokeWidth', FGridStrokeThick);
+    WriteFloat  ('UIOptions',    'GridStrokeWidth', FGridStrokeThick);
+    WriteInteger('MapParams',    'MapCategory',     Ord(FMapCategory));
     WriteFloat  ('MapParams',    'SetWeight',       TrackBar_Weight.Value);
+    WriteInteger('MapParams',    'CustomOffset',    FCustomOffSet);
     WriteFloat  ('MapParams',    'Tilesize',        TrackBar_TileSize.Value);
     WriteFloat  ('MapParams',    'CellWeight',      TrackBar_CellWeight.Value);
     WriteInteger('MapParams',    'WallDefine',      FWallDefineVal);
@@ -524,26 +662,30 @@ begin
   // ------------------------------------------------------------------------ //
 end;
 
-procedure TFormMain.SetupMultiViewPopup;
+procedure TFormMain.SetupMultiViewOptionsPopup;
 begin
   with MultiView_Options do
   begin
     Mode := TMultiViewMode.Popover;
-    PopoverOptions.PopupHeight := 610;
+    PopoverOptions.PopupHeight := 620;
     MasterButton := Button_Options;
     TargetControl := nil;
-
+    Opacity := 0.8;
     Width := 225;
   end;
 
-  with MultiView_Popup do
+  with Rectangle_Options do
   begin
     Stroke.Kind := TBrushKind.Solid;
     XRadius := 10;
     YRadius := 10;
 
-    Enabled := not FLockMapFlag;
+    Enabled := True;
   end;
+end;
+
+procedure TFormMain.SetupMultiViewWeightsPopup;
+begin
 end;
 
 procedure TFormMain.SetWallDefineVal(const Value: Integer);
@@ -556,9 +698,15 @@ end;
 
 procedure TFormMain.MultiView_OptionsShown(Sender: TObject);
 begin
+  HideCustomWeight(0);
   CheckBox_CustomColor.OnChange :=  nil;
   CheckBox_CustomColor.IsChecked := CustomColorFlag;
   CheckBox_CustomColor.OnChange :=  CheckBox_CustomColorChange;
+end;
+
+procedure TFormMain.MultiView_WeightsShown(Sender: TObject);
+begin
+  RefreshStackManager(0);
 end;
 
 procedure TFormMain.SetZoomRatio(const Value: Single);
@@ -582,11 +730,18 @@ begin
 
   if (Key = vkEscape) then
   begin
+    if Layout_InputQuery.Visible then
+      begin
+        Layout_InputQuery.Visible := False;   Key := 0; Exit;
+      end;
     if MultiView_Options.IsShowed then
       begin
-        MultiView_Options.HideMaster;
-        Key := 0; Exit;
-      end else
+        MultiView_Options.HideMaster;         Key := 0; Exit;
+      end;
+    if Layout_CustomWeight.Visible then
+      begin
+        Layout_CustomWeight.Visible := False; Key := 0; Exit;
+      end;
     if FBackup.IsAvailable then
     begin
       FBackup.Restore(FMapWeights, FPathFinder.Data);
@@ -597,20 +752,23 @@ begin
     end;
   end;
 
+  if not Layout_CustomWeight.Visible then                                       // for prepare Edit mode of CustomWeights ...
+  begin
+    if KeyChar = 'a' then Action_AnalysisExecute(Self) else
+    if KeyChar = 'b' then Action_CenterMapExecute(Self) else
+    if KeyChar = 'f' then Action_FIlterBuildsExecute(Self) else
+    if KeyChar = 'g' then Action_ShowGridsExecute(Self) else
+    if KeyChar = 'h' then Action_HelpExecute(Self) else
+    if KeyChar = 'm' then Action_LoadMapExecute(Self) else
+    if KeyChar = 'o' then Action_OptionsExecute(Self) else
+    if KeyChar = 'q' then Action_SmoothLineExecute(Self) else
+    if KeyChar = 'r' then Action_ResetMapExecute(Self) else
+    if KeyChar = 's' then Action_ScreenshotExecute(Self) else
+    if KeyChar = 'w' then Action_CustomWeightExecute(Self) else
+    if KeyChar = ' ' then Action_CustomColorExecute(Self);
+  end;
+
   var _effectflag: Boolean := False;
-
-  if KeyChar = 'a' then Action_AnalysisExecute(Self) else
-  if KeyChar = 'b' then Action_CenterMapExecute(Self) else
-  if KeyChar = 'f' then Action_FIlterBuildsExecute(Self) else
-  if KeyChar = 'g' then Action_ShowGridsExecute(Self) else
-  if KeyChar = 'm' then Action_LoadMapExecute(Self) else
-  if KeyChar = 'o' then Action_OptionsExecute(Self) else
-  if KeyChar = 'q' then Action_SmoothLineExecute(Self) else
-  if KeyChar = 'r' then Action_ResetMapExecute(Self) else
-  if KeyChar = 's' then Action_ScreenshotExecute(Self) else
-  if KeyChar = 'h' then Action_HelpExecute(Self) else
-  if KeyChar = ' ' then Action_CustomColorExecute(Self);
-
   if ssCtrl in Shift then
     begin
       if CheckBox_Weights.IsChecked then
@@ -669,13 +827,12 @@ procedure TFormMain.SetCustomColor(const Value: TAlphaColor);
 begin
   FCustomColor := Value;
   Rectangle_CustomColor1.Fill.Color := Value;
-  Rectangle_CustomColor2.Fill.Color := Value;
 end;
 
 procedure TFormMain.SetCustomColorFlag(const Value: Boolean);
 begin
   FCustomColorFlag := Value;
-  Rectangle_CustomColor2.Visible := Value;
+  Text_CustomWeight2.Visible := Value;
   MultiView_Options.HideMaster;
 end;
 
@@ -688,10 +845,26 @@ begin
   end;
 end;
 
-function TFormMain.IsPathValid: Boolean;
+procedure TFormMain.CheckBox_WeightsChange(Sender: TObject);
 begin
-  Result := (FCurrentPath.Count > 0);
+  if FLockUpdate then Exit;
+  PaintBox_Map.Repaint;
 end;
+
+procedure TFormMain.CheckBox_CustomColorChange(Sender: TObject);
+begin
+  if FLockUpdate then Exit;
+  CustomColorFlag := CheckBox_CustomColor.IsChecked;
+end;
+
+procedure TFormMain.CheckBox_FilterBDChange(Sender: TObject);
+begin
+  if FLockUpdate then Exit;
+  AnalyzeHeightMap(FFilterIndex);
+  UpdatePath();
+end;
+
+{ Draw Map Methods ----------------------------------------------------------- }
 
 procedure TFormMain.CenterMap(const AInitFlag: Boolean = False);
 begin
@@ -755,24 +928,6 @@ begin
     FViewOffset.Y := (PaintBox_Map.Height - _MapHeight) / 2                          // If it's smaller than the screen, center
   else
     FViewOffset.Y := EnsureRange(FViewOffset.Y, PaintBox_Map.Height - _MapHeight, 0);// Larger than the screen, limit the margin
-end;
-
-procedure TFormMain.CheckBox_WeightsChange(Sender: TObject);
-begin
-  if FLockUpdate then Exit;
-  PaintBox_Map.Repaint;
-end;
-
-procedure TFormMain.CheckBox_CustomColorChange(Sender: TObject);
-begin
-  CustomColorFlag := CheckBox_CustomColor.IsChecked;
-end;
-
-procedure TFormMain.CheckBox_FilterBDChange(Sender: TObject);
-begin
-  if FLockUpdate then Exit;
-  AnalyzeHeightMap(FFilterIndex);
-  UpdatePath();
 end;
 
 procedure TFormMain.AdjustMarkersToViewport;
@@ -918,7 +1073,8 @@ begin
   FreeAndNil(FPathFinder);
   FPathFinder := TTileMap.Create(_TileWidth, _TileHeight, FTileMapkind);
   // --------------------------------------------------------------------- //
-  MultiView_Popup.Enabled := not FLockMapFlag;
+  Rectangle_Options.Enabled := not FLockMapFlag;
+  Rectangle_CustomWeight.Enabled := not FLockMapFlag;
 
   if FLockMapFlag then Exit;
 
@@ -1155,6 +1311,8 @@ begin
 
     { Adaptive Wall Threshold }
     var _WallThresh: Single := EnsureRange(0.55 - (_MeanV - 0.40) * 0.30 + (_MeanS - 0.15) * 0.25, 0.35, 0.65);
+    var _mapPtr: PByte := FPathFinder.Data;
+    var _wgtPtr: PByte := @FMapWeights[0];
 
     TParallel.For(0, FPathFinder.Rows - 1, procedure(Row: Integer)
     var
@@ -1164,7 +1322,7 @@ begin
       _PixW: Byte; _IsWall: Boolean;
       _RecColor: TAlphaColorRec;
       _Scan: PAlphaColorRecArray;
-      _GridX, _Idx, _FinalWeight: Integer;
+      _Idx, _FinalWeight: Integer;
     begin
       SetLength(_WeightSum,  FPathFinder.Columns);
       SetLength(_WallVotes,  FPathFinder.Columns);
@@ -1174,34 +1332,34 @@ begin
             Min(FBackgroundBitmap.Height - 1, Trunc((Row + 1) * _StepY) - 1) do
       begin
         _Scan := _Data.GetScanline(_py);
-        for _GridX := 0 to FPathFinder.Columns - 1 do
-          for var _px := Max(0, Trunc(_GridX * _StepX)) to
-                Min(FBackgroundBitmap.Width - 1, Trunc((_GridX + 1) * _StepX) - 1) do
+        for var _Col := 0 to FPathFinder.Columns - 1 do
+          for var _px := Max(0, Trunc(_Col * _StepX)) to
+                Min(FBackgroundBitmap.Width - 1, Trunc((_Col + 1) * _StepX) - 1) do
           begin
             _RecColor := _Scan^[_px];
             _ClassifyProc(_RecColor.R, _RecColor.G, _RecColor.B, _PixW, _IsWall);;
 
-            if _IsWall then Inc(_WallVotes[_GridX]);
-            _WeightSum[_GridX]  := _WeightSum[_GridX] + _PixW;
-            Inc(_PixelCount[_GridX]);
+            if _IsWall then Inc(_WallVotes[_Col]);
+            _WeightSum[_Col]  := _WeightSum[_Col] + _PixW;
+            Inc(_PixelCount[_Col]);
           end;
       end;
 
-      for _GridX := 0 to FPathFinder.Columns - 1 do
+      for var _Col := 0 to FPathFinder.Columns - 1 do
       begin
-        if _PixelCount[_GridX] = 0 then Continue;
-        _Idx := Row * FPathFinder.Columns + _GridX;
+        if _PixelCount[_Col] = 0 then Continue;
+        _Idx := Row * FPathFinder.Columns + _Col;
 
-        if (_WallVotes[_GridX] / _PixelCount[_GridX]) >= _WallThresh then
+        if (_WallVotes[_Col] / _PixelCount[_Col]) >= _WallThresh then
           begin
-            (FPathFinder.Data + _Idx)^ := 1;
-            FMapWeights[_Idx] := 255;
+            (_mapPtr + _Idx)^ := 1;
+            (_wgtPtr + _Idx)^ := 255;
           end
         else
           begin
-            (FPathFinder.Data + _Idx)^ := 0;
-            _FinalWeight := Trunc((_WeightSum[_GridX] / _PixelCount[_GridX]) * FWeightMultiplier);
-            FMapWeights[_Idx] := EnsureRange(_FinalWeight, 0, 254);
+            _FinalWeight := Trunc((_WeightSum[_Col] / _PixelCount[_Col]) * FWeightMultiplier);
+            (_mapPtr + _Idx)^ := 0;
+            (_wgtPtr + _Idx)^ := EnsureRange(_FinalWeight, 0, 254);
           end;
       end;
     end);
@@ -1212,6 +1370,8 @@ begin
   if CheckBox_FilterBD.IsChecked then
     RefineWallGrid;
 end;
+
+{ The state of not touching anyone to FPathFinder.Data, FMapWeights !!! }
 
 procedure TFormMain.ApplyTerrainTraining(const AGX, AGY: Integer);
 begin
@@ -1233,27 +1393,29 @@ begin
     var _TargetH, _TargetS, _TargetV: Single;
     RGBToHSV(_ColorRec.R, _ColorRec.G, _ColorRec.B, _TargetH, _TargetS, _TargetV);
 
+    var _mapPtr: PByte := FPathFinder.Data;
+    var _wgtPtr: PByte := @FMapWeights[0];
+
     TParallel.For(0, FPathFinder.Rows - 1, procedure(Row: Integer)
     var
       _H, _S, _V: Single;
       _Scan: PAlphaColorRecArray;
-      _GridX, _Idx: Integer;
+      _Idx: Integer;
       _DiffH: Single;
-      _px, _py: Integer;
-      _PY_Start, _PY_End: Integer;
+      _px: Integer;
       _PX_Start, _PX_End: Integer;
     begin
-      _PY_Start := Trunc(Row * _StepY);
-      _PY_End   := Trunc((Row + 1) * _StepY) - 1;
+      var _PY_Start := Trunc(Row * _StepY);
+      var _PY_End   := Trunc((Row + 1) * _StepY) - 1;
 
-      for _py := Max(0, _PY_Start) to Min(FBackgroundBitmap.Height - 1, _PY_End) do
+      for var _py := Max(0, _PY_Start) to Min(FBackgroundBitmap.Height - 1, _PY_End) do
       begin
         _Scan := _Data.GetScanline(_py);
 
-        for _GridX := 0 to FPathFinder.Columns - 1 do
+        for var _Col := 0 to FPathFinder.Columns - 1 do
         begin
-          _PX_Start := Trunc(_GridX * _StepX);
-          _PX_End   := Trunc((_GridX + 1) * _StepX) - 1;
+          _PX_Start := Trunc(_Col * _StepX);
+          _PX_End   := Trunc((_Col + 1) * _StepX) - 1;
 
           _px := (_PX_Start + _PX_End) div 2;
           var _RecColor := _Scan^[_px];
@@ -1263,17 +1425,17 @@ begin
           _DiffH := Abs(_H - _TargetH);
           if _DiffH > 180 then _DiffH := 360 - _DiffH;
 
-          _Idx := Row * FPathFinder.Columns + _GridX;
+          _Idx := Row * FPathFinder.Columns + _Col;
 
           if (_DiffH < _TolH) and (Abs(_S - _TargetS) < _TolS) and (Abs(_V - _TargetV) < _TolV) then
             begin
-              (FPathFinder.Data + _Idx)^ := 0; // Road
-              FMapWeights[_Idx] := 0;
+              (_mapPtr + _Idx)^ := 0;   // Buildings
+              (_wgtPtr + _Idx)^ := 0;
             end
           else
             begin
-              (FPathFinder.Data + _Idx)^ := 1; // Wall
-              FMapWeights[_Idx] := 255;
+              (_mapPtr + _Idx)^ := 1;   // Wall
+              (_wgtPtr + _Idx)^ := 255;
             end;
         end;
       end;
@@ -1296,12 +1458,8 @@ begin
 
   var _mapRows := FPathFInder.Rows;
   var _mapCols := FPathFInder.Columns;
-  var _ResultMap: array of Byte;
-  SetLength(_ResultMap, _mapRows * _mapCols);
-  Move(FPathFinder.Data^, _ResultMap[0], _mapRows * _mapCols);
-
-  var _srcPtr: PByte := FPathFinder.Data;
-  var _resPtr: PByte := @_ResultMap[0];
+  var _mapPtr: PByte := FPathFinder.Data;                                       // Read only
+  var _wgtPtr: PByte := @FMapWeights[0];
 
   TParallel.For(1, _mapRows -2, procedure(Row: Integer)
   var
@@ -1312,7 +1470,7 @@ begin
     begin
       _Idx := Row * _mapCols + _Col;
 
-      if (_srcPtr + _Idx)^ = 0 then
+      if (_mapPtr + _Idx)^ = 0 then                                             // = if _srcPtr[_Idx] = 0 then
       begin
         _WallCount := 0;
 
@@ -1321,37 +1479,27 @@ begin
           for _nx := -1 to 1 do
           begin
             if (_nx = 0) and (_ny = 0) then Continue;
-            if (_srcPtr + (Row + _ny) * _mapCols + (_Col + _nx))^ = 1 then
+            if (_mapPtr + (Row + _ny) * _mapCols + (_Col + _nx))^ = 1 then
               Inc(_WallCount);
           end;
         { Setting threshold: If more than 4 out of 8 compartments are walls,
           this is also considered to be the interior of the building }
         if _WallCount >= FWallDefineVal then
         begin
-          (_resPtr + _Idx)^ := 1;
+          (_mapPtr + _Idx)^ := 1;
+          (_wgtPtr + _Idx)^ := 255;
         end;
       end;
     end;
   end);
-
-  for var _idx := 0 to _mapRows * _mapCols - 1 do
-  if _ResultMap[_idx] = 1 then
-    begin
-      (FPathFinder.Data + _idx)^ := 1;
-      FMapWeights[_idx] := 255;
-    end;
 end;
 
 procedure TFormMain.RefineWallGrid_hex;
 begin
   var _mapRows := FPathFinder.Rows;
   var _mapCols := FPathFinder.Columns;
-  var _ResultMap: array of Byte;
-  SetLength(_ResultMap, _mapRows * _mapCols);
-  Move(FPathFinder.Data^, _ResultMap[0], _mapRows * _mapCols);
-
-  var _srcPtr: PByte := FPathFinder.Data;
-  var _resPtr: PByte := @_ResultMap[0];
+  var _mapPtr: PByte := FPathFinder.Data;
+  var _wgtPtr: PByte := @FMapWeights[0];
 
   TParallel.For(1, _mapRows - 2, procedure(Row: Integer)
   var
@@ -1363,7 +1511,7 @@ begin
     begin
       _Idx := Row * _mapCols + _Col;
 
-      if (_srcPtr + _idx)^ = 0 then
+      if (_mapPtr + _idx)^ = 0 then
       begin
         _WallCount := 0;
         _colParity := _Col and 1;
@@ -1373,24 +1521,18 @@ begin
           _nx := _Col + C_HEX_OFFSETS[_colParity, _neighbor, 0];
           _ny := Row  + C_HEX_OFFSETS[_colParity, _neighbor, 1];
 
-          if (_srcPtr + _ny * _mapCols + _nx)^ = 1 then
+          if (_mapPtr + _ny * _mapCols + _nx)^ = 1 then
             Inc(_WallCount);
         end;
 
         if _WallCount >= FWallDefineVal then
         begin
-          (_resPtr + _idx)^ := 1;
+          (_mapPtr + _idx)^ := 1;
+          (_wgtPtr + _Idx)^ := 255;
         end;
       end;
     end;
   end);
-
-  for var _i := 0 to _mapRows * _mapCols - 1 do
-  if _ResultMap[_i] = 1 then
-    begin
-      (FPathFinder.Data + _i)^ := 1;
-      FMapWeights[_i] := 255;
-    end;
 end;
 
 function TFormMain.IsInGrid(AGX, AGY: Integer): Boolean;
@@ -1412,8 +1554,6 @@ begin
 
   FPathPending := True;
   FPathDirty   := False;
-  { Free FCurrentPatth }
-  FCurrentPath.Release;
 
   var _StartPos  := FStartPos;
   var _FinishPos := FFinishPos;
@@ -1430,7 +1570,10 @@ begin
     TThread.Queue(nil,
       procedure
       begin
+        // ------------------------------------------------------------------ //
+        FCurrentPath.Release;
         FCurrentPath     := _NewPath;
+        // ------------------------------------------------------------------ //
         FPerformanceTick := _Stopwatch.ElapsedMilliseconds;
         FPathPending     := False;
 
@@ -1497,7 +1640,7 @@ begin
       SetLength(_WaterCount,    _mapCols);
       SetLength(_RoadCount,     _mapCols);
 
-      var _SumL: array of Double; // 추가
+      var _SumL: array of Double;
       SetLength(_SumL, _mapCols);
 
       for var _py := Max(0, Trunc(Row * _StepY)) to Min(FBackgroundBitmap.Height-1, Trunc((Row+1)*_StepY)-1) do
@@ -1531,7 +1674,7 @@ begin
         else
           begin
             var _AvgL := _SumL[_col] / _PixelCount[_col];
-            (FPathFinder.Data + _Idx)^ := 0;
+            (_mapPtr + _Idx)^ := 0;
             if (_RoadCount[_col] / _PixelCount[_col] > 0.3)
               then (_wgtPtr + _Idx)^ := 0
               else (_wgtPtr + _Idx)^ := Trunc(Max(0, (0.8 - _AvgL) * 40));
@@ -1684,7 +1827,7 @@ end;
 { ---- ScreenToGridF -------------------------------------------------------- }
 { Original used pure division: Floor((X - OffsetX) / CellSize)                }
 { New: delegates to HexCellAt when in hex mode.                               }
-function TFormMain.ScreenToGridF(AX, AY: Single): TPoint;
+function TFormMain.ScreenToGridF(const AX, AY: Single): TPoint;
 begin
   if (FPathFinder = nil) or (FCellSize <= 0) then Exit(TPoint.Zero);
 
@@ -1778,7 +1921,7 @@ begin
         end
       else if FMapWeights[_Idx] > 10 then
         begin
-          ACanvas.Fill.Color := GWeightColorTable1[FMapWeights[_Idx]];
+          ACanvas.Fill.Color := V_GWeightColorTable1[FMapWeights[_Idx]];
           ACanvas.FillRect(_R, 0, 0, [], 0.6);
         end;
     end;
@@ -1903,7 +2046,7 @@ begin
 
       DrawHex(ACanvas, _Centre, FCellSize,
               0,                                       { fill — none here }
-              MakeColor(ColorComboBox_Grid.Color, 80), { stroke colour    } //;/ MakeColor(TAlphaColors.Lightgray, 40),
+              MakeColor(ColorComboBox_Grid.Color, 80), { stroke colour    }
               FGridStrokeThick,                        { stroke width     }
               False);                                  { stroke only      }
     end;
@@ -1959,7 +2102,7 @@ begin
       begin
         GridToScreenP(_gCol, _gRow, _SPos);
         _Rect := TRectF.Create(_SPos.X, _SPos.Y, _SPos.X + FCellSize, _SPos.Y + FCellSize);
-        Canvas.Fill.Color := GWeightColorTable2[_Wght];
+        Canvas.Fill.Color := V_GWeightColorTable2[_Wght];
         Canvas.FillRect(_Rect, 0, 0, [], 1.0);
       end;
     end;
@@ -2009,6 +2152,20 @@ begin
   finally
     Canvas.RestoreState(_State);
   end;
+end;
+
+procedure TFormMain.BackupCurrentPath();
+begin
+  { Backup and Free FCurrentPatth }
+  if FCurrentPath.Count > 0 then
+  begin
+    FBackupPath:= FCurrentPath.Clone;
+  end;
+end;
+
+function TFormMain.IsPathValid: Boolean;
+begin
+  Result := (FCurrentPath.Count > 2);
 end;
 
 procedure TFormMain.SetPathColorControl(const AFlag: Integer; const ARepaint: Boolean = True);
@@ -2248,65 +2405,17 @@ begin
     end;
 end;
 
-procedure TFormMain.ApplyTerrainCustomization(const AWeight, AWeightFlag: Byte; const AValue: Integer = 0);
+{ Mouse Control Setion ------------------------------------------------------- }
+procedure TFormMain.HideCustomWeight(const  AFlag: Integer);
 begin
-  if FBackgroundBitmap.IsEmpty or (FPathFInder = nil) then Exit;
-
-  { Backup ... }
-  FBackup.Capture(FMapWeights, FPathFinder.Data, FPathFinder.Columns * FPathFinder.Rows);
-
-  var _applycount := 0;
-  var _applyvalue: Byte := IfThen(AValue=0, 0, 255);
-
-  var _tmpData: TArray<Byte>;
-  var _tmpWeight: TArray<Byte>;
-  SetLength(_tmpData, FPathFinder.Columns * FPathFinder.Rows);
-  Move(FPathFinder.Data^, _tmpData[0], FPathFinder.Columns * FPathFinder.Rows);
-  SetLength(_tmpWeight, Length(FMapWeights));
-  Move(FMapWeights[0], _tmpWeight[0], Length(FMapWeights));
-
-  var _mapPtr: PByte := @_tmpData[0];
-  var _wgtPtr: PByte := @_tmpWeight[0];
-
-  TParallel.For(0, FPathFinder.Rows -1, procedure(Row: Integer)
-  var
-    _Idx: Integer;
-    _weight: Byte;
-  const
-    _offset: Byte = 10;
-  begin
-    for var _x := 0 to FPathFinder.Columns - 1 do
-    begin
-      _Idx :=    Row * FPathFinder.Columns + _x;
-      _weight := (_wgtPtr + _Idx)^;
-
-      var _low :=  Max(0,   Int32(AWeight) - _offset);
-      var _high := Min(255, Int32(AWeight) + _offset);
-
-      if (_weight >= _low) and (_weight <= _high) then
-      begin
-        TInterlocked.Increment(_applycount);
-        (_mapPtr + _Idx)^ := Byte(AValue);
-        (_wgtPtr + _Idx)^ := _applyvalue;
-      end;
-    end;
-  end);
-
-  Move(_tmpData[0],   FPathFinder.Data^, FPathFinder.Columns * FPathFinder.Rows);
-  Move(_tmpWeight[0], FMapWeights[0],    Length(FMapWeights));
-
-  if _applycount > 0 then
-  begin
-    ShowToastAlert('Applied count - ' +  _applycount.ToString);
-    UpdatePath(True);
-  end;
+  Layout_CustomWeight.Visible := False;
 end;
-
-{ Mouse Control Setion ... }
 
 procedure TFormMain.PaintBox_MapMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
   if FLockMapFlag then Exit;
+
+  HideCustomWeight(0);
 
   var _GX, _GY: Integer;
   FLastMousePos := PointF(X, Y);
@@ -2319,7 +2428,7 @@ begin
   if CustomColorFlag then
   begin
     var _Value:Integer := IfThen(Button = TMouseButton.mbLeft, 0, 1);
-    ApplyTerrainCustomization(FCurrentWeight, FCurrentWightFlag, _Value);
+    ApplyTerrainCustomization(0, '', FCurrentWeight, _Value);
 
     Exit;
   end;
@@ -2421,7 +2530,7 @@ end;
 
 procedure TFormMain.PaintBox_MapMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
-  CustomColorFlag := False;
+  CustomColorFlag := False;                                                     // ???
   PaintBox_Map.Cursor := TCursor(crDefault);
   FDragMode := TDragMode.None;
 end;
@@ -2429,6 +2538,7 @@ end;
 procedure TFormMain.PaintBox_MapMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
 begin
   if FLockMapFlag then Exit;
+
   var _OldCellSize := FCellSize;
   if WheelDelta > 0 then FCellSize := Min(FCellSize * 1.1, 400)
                     else FCellSize := Max(FCellSize * 0.9, 0.5);
@@ -2453,10 +2563,28 @@ begin
   Handled := True;
 end;
 
+procedure TFormMain.UpdateStatusLabel();
+begin
+  if FPathFinder = nil then Exit;
+
+  FZoomRatio := FCellSize / FSetCellSize;
+  Label_Zoom.Text :=        Format('🔍 Zoom: %.0f%%  ', [FZoomRatio*100]);
+  Label_ViewPos.Text :=     Format('👉 Grid (%d,%d) | Cell Size : %d | 💧 Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, Round(FCellSize),  FCurrentWeight, FCurrentWightFlag]);
+  Label_Grids.Text :=       Format('🏁 Grids %d x %d | Map Weight %.2f', [FPathFInder.Columns, FPathFInder.Rows, FWeightMultiplier]);
+  Label_SInfos.Text :=      Format('🧩 Nodes: %d | Distance: %.1f', [FCurrentPath.Count, FCurrentPath.Distance]);
+
+  if Label_Performance.Visible then
+  Label_Performance.Text := Format('✨ Performance: %d ms | PoolCount %d MapSize %d MaxNodes %d Nodes: %d | Offset: (%.0f, %.0f)',
+                                   [FPerformanceTick, FPathFinder.PoolCount, FPathFinder.MapSize, FPathFinder.MaxNodes, FCurrentPath.Count, FViewOffset.X, FViewOffset.Y]);
+end;
+
+{ ToolBar -------------------------------------------------------------------- }
+
 procedure TFormMain.Button_HeighlightMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
   if FLockMapFlag then Exit;
 
+  HideCustomWeight(0);
   FIsHighlightMode := True;
   // ------------------------------------------------------------------------ //
   PaintBox_Map.Repaint;
@@ -2489,32 +2617,19 @@ begin
 
   TrackBar_Weight.Value          := 50.0;
   TrackBar_TileSize.Value        := C_CellSizeDefault;
-  TrackBar_CellWeight.Value      := 100.0;
+  TrackBar_CellWeight.Value      := 255;
   TrackBar_WallFactor.Value      := 3;
   WallDefineVal                  := 3;
   ComboBox_Kind.ItemIndex        := 3;
   FTileMapkind                   := TTileMapKind(3);
+
+  TrackBar_CustomOffset.Value    := 10;                                         //Update -> FCustomOffSet
   SetPathColorControl(0, False);
 
   Label_PathTileSize.Text := '🏁 MAP Tile Size (Default) : '+Trunc(C_CellSizeDefault).ToString;
   FLockUpdate := False;
 ;
   Action_ResetMapExecute(Self);
-end;
-
-procedure TFormMain.UpdateStatusLabel();
-begin
-  if FPathFinder = nil then Exit;
-
-  FZoomRatio := FCellSize / FSetCellSize;
-  Label_Zoom.Text :=        Format('🔍 Zoom: %.0f%%  ', [FZoomRatio*100]);
-  Label_ViewPos.Text :=     Format('👉 Grid : %dx%d | Cell Size : %d | 💧 Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, Round(FCellSize),  FCurrentWeight, FCurrentWightFlag]);
-  Label_Grids.Text :=       Format('🏁 Grids %d x %d | Map Weight %.2f', [FPathFInder.Columns, FPathFInder.Rows, FWeightMultiplier]);
-  Label_SInfos.Text :=      Format('🧩 Nodes: %d | Distance: %.1f', [FCurrentPath.Count, FCurrentPath.Distance]);
-
-  if Label_Performance.Visible then
-  Label_Performance.Text := Format('✨ Performance: %d ms | PoolCount %d MapSize %d MaxNodes %d Nodes: %d | Offset: (%.0f, %.0f)',
-                                   [FPerformanceTick, FPathFinder.PoolCount, FPathFinder.MapSize, FPathFinder.MaxNodes, FCurrentPath.Count, FViewOffset.X, FViewOffset.Y]);
 end;
 
 procedure TFormMain.ColorComboBox_GridChange(Sender: TObject);
@@ -2568,7 +2683,7 @@ begin
   UpdatePath(True);
 end;
 
-// Extra Method ------------------------------------------------------------- //
+{ Extra Method --------------------------------------------------------------- }
 
 procedure TFormMain.SaveScreenshot(const ADialogFlag: Boolean = False);
 begin
@@ -2580,7 +2695,7 @@ begin
       try
         _SaveDialog.Filter := 'PNG Image|*.png';
         _SaveDialog.DefaultExt := 'png';
-        _SaveDialog.FileName := Format('Snapshot_%s.png', [FormatDateTime('yyMMdd_hhmmss', Now)]);
+        _SaveDialog.FileName := Format('Snapshot_%s.png', [FormatDateTime('yymmdd_hhnnss', Now)]);
         _Snapenflag := _SaveDialog.Execute;
         _SaveFile := _SaveDialog.FileName;
       finally
@@ -2590,7 +2705,7 @@ begin
   else
     begin
       var _SaveParth := ExtractFilePath(ParamStr(0));
-      _SaveFile := Format('Snapshot_%s.png', [FormatDateTime('yyMMdd_hhmmss', Now)]);
+      _SaveFile := Format('Snapshot_%s.png', [FormatDateTime('yymmdd_hhnnss', Now)]);
       _SaveFile := IncludeTrailingPathDelimiter(_SaveParth) + _SaveFile;
       _Snapenflag := True;
     end;
@@ -2670,6 +2785,8 @@ begin
   end;
 end;
 
+{The Members of ActionList  -------------------------------------------------- }
+
 procedure TFormMain.AnimationFinishedEvent(Sender: TObject);
 begin
   if Assigned(Alert_Container) then
@@ -2678,8 +2795,8 @@ end;
 
 procedure TFormMain.Action_ScreenCapExecute(Sender: TObject);
 begin
-  var _SavePath := ExtractFilePath(ParamStr(0)) + 'ScreenSnap_' + FormatDateTime('mmdd_hhnnss', Now) + '.png';
-
+  var _SavePath := ExtractFilePath(ParamStr(0)) +
+                   Format('ScreenSnap_%s.png', [FormatDateTime('yymmddhhnnss', Now)]);
   TThread.ForceQueue(nil,
     procedure
     begin
@@ -2707,20 +2824,27 @@ end;
 
 procedure TFormMain.ActionList1Update(Action: TBasicAction; var Handled: Boolean);
 begin
-  MultiView_Popup.Enabled :=      not FLockMapFlag;
-  Action_Highleght.Enabled :=     not FLockMapFlag;
-  Button_Heighlight.Enabled :=    not FLockMapFlag;
-  Action_Options.Enabled :=       not FLockMapFlag;
-  Action_ResetMap.Enabled :=      not FLockMapFlag;
-  StatusBar_Map.Visible :=        not FLockMapFlag;
+  Rectangle_Options.Enabled :=        not FLockMapFlag;
+  Rectangle_CustomWeight.Enabled :=   not FLockMapFlag;
+  Action_Highleght.Enabled :=         not FLockMapFlag;
+  Button_Heighlight.Enabled :=        not FLockMapFlag;
+  Action_Options.Enabled :=           not FLockMapFlag;
+  Action_ResetMap.Enabled :=          not FLockMapFlag;
+  Action_CustomWeight.Enabled :=      not FLockMapFlag;
+  Action_RestoreWeights.Enabled :=    FBackup.IsAvailable;
+  Action_CustomApplyToAll.Enabled :=  False;                                    // Reserved ...
+  Layout_WeightGroup.Visible :=       not FLockMapFlag;
+  StatusBar_Map.Visible :=            not FLockMapFlag;
+  TrackBar_CellWeight.Enabled :=      CheckBox_WeightCell.IsChecked;
+  Action_CustomApplayToMap.Enabled := ListBox_CustomWeights.Items.Count > 0;
 
-  TrackBar_CellWeight.Enabled :=  CheckBox_WeightCell.IsChecked;
-
-  CheckBox_HeatMap.OnChange := nil;
-  if FPathFinder.Kind = TTileMapKind.mkHexagonal then
-    CheckBox_HeatMap.IsChecked := False;
-  CheckBox_HeatMap.OnChange := CheckBox_WeightsChange;
-  CheckBox_HeatMap.Enabled  := (FPathFinder <> nil) and (FPathFinder.Kind <> TTileMapKind.mkHexagonal);
+  with CheckBox_HeatMap do
+  begin
+    OnChange  := nil;
+    IsChecked := IsChecked and (FPathFinder.Kind <> TTileMapKind.mkHexagonal);
+    OnChange  := CheckBox_WeightsChange;
+    Enabled   := (FPathFinder <> nil) and (FPathFinder.Kind <> TTileMapKind.mkHexagonal);
+  end;
 end;
 
 procedure TFormMain.Action_AnalysisExecute(Sender: TObject);
@@ -2757,15 +2881,20 @@ end;
 
 procedure TFormMain.Action_LoadMapExecute(Sender: TObject);
 begin
+  HideCustomWeight(0);
+
   if FFirstTileFlag then
   begin
     FFirstTileFlag := False;
     Action_HelpExecute(self);
   end;
 
+  OpenDialog_Map.InitialDir :=  ParamStr(0);
+  OpenDialog_Map.Filter :=      TBitmapCodecManager.GetFilterString;
+  OpenDialog_Map.FilterIndex := 1;
   if OpenDialog_Map.Execute then
   begin
-    FLockMapFlag := False;  // Only UnLockFlag ....
+    FLockMapFlag := False;                                                      // Only UnLockFlag / Exclusive ....
     FBackgroundBitmap.LoadFromFile(OpenDialog_Map.FileName);
     InitializeDrawPath(True);
     Path_Compass.Visible :=  True;
@@ -2774,16 +2903,327 @@ end;
 
 procedure TFormMain.Action_OptionsExecute(Sender: TObject);
 begin
-  if MultiView_Options.IsShowed then
-    MultiView_Options.HideMaster
-   else
-    MultiView_Options.ShowMaster;
+  if MultiView_Options.IsShowed
+    then MultiView_Options.HideMaster
+    else MultiView_Options.ShowMaster;
 end;
 
 procedure TFormMain.Action_ResetMapExecute(Sender: TObject);
 begin
+  HideCustomWeight(0);
   InitializeDrawPath(True);
 end;
 
+{ ApplyTerrainCustomization / Stack Manager for Custom Weight   -------------- }
+
+procedure TFormMain.TrackBar_CustomOffsetChange(Sender: TObject);
+begin
+  FCustomOffSet := Trunc(TrackBar_CustomOffset.Value);
+  Label_CustomOffsetVal.Text := Format('%d', [FCustomOffSet]);
+end;
+
+procedure TFormMain.ApplyTerrainCustomization(const AFlag: Integer; const AStackName: string; const AWeight: Byte; const AValue: Integer = 0);
+begin
+  if FBackgroundBitmap.IsEmpty or (FPathFInder = nil) then Exit;
+  if (AFlag = 1) and (not FWeightStackManager.IsStackValid(AStackName)) then Exit;
+
+  { Backup ... }
+  FBackup.Capture(FMapWeights, FPathFinder.Data, FPathFinder.Columns * FPathFinder.Rows);
+  FLockMapFlag := True;
+
+  var _applycount       := 0;
+  var _applyvalue: Byte := IfThen(AValue=0, 0, 255);
+      _applyvalue       := IIF.CastBool<Byte>(CheckBox_WeightCell.IsChecked, Byte(Trunc(TrackBar_CellWeight.Value)), _applyvalue);
+  var _applykey: Byte   := IfThen(AValue=0, 0, 1);
+  var _mapPtr: PByte    := FPathFinder.Data;
+  var _wgtPtr: PByte    := @FMapWeights[0];
+
+  var _stackarray: TArray<Byte>;
+  //const _offset: Byte = 10;   kkk
+  var _low: Byte :=  Max(0,   AWeight - FCustomOffSet);
+  var _high: Byte := Min(255, AWeight + FCustomOffSet);
+  // Add to Stack ----------------------------------------------------------- //
+  if AFlag = 0
+    then FWeightStackManager.PushToStackUsr_seq(AStackName, _low, _high, _applyvalue)
+    else FWeightStackManager.GetFromCurrent_seq(AStackName, _low, _high, _applyvalue);
+  // ------------------------------------------------------------------------ //
+  TParallel.For(0, FPathFinder.Rows -1, procedure(Row: Integer)
+  var
+    _Idx: Integer;
+    _weight: Byte;
+  begin
+    for var _x := 0 to FPathFinder.Columns - 1 do
+    begin
+      _Idx :=    Row * FPathFinder.Columns + _x;
+      _weight := (_wgtPtr + _Idx)^;
+
+      if (_weight >= _low) and (_weight <= _high) then
+      begin
+        TInterlocked.Increment(_applycount);
+        (_mapPtr + _Idx)^ := Byte(_applykey);
+        (_wgtPtr + _Idx)^ := _applyvalue;
+      end;
+    end;
+  end);
+
+  CustomColorFlag := False;
+  FLockMapFlag := False;
+  if _applycount > 0 then
+  begin
+    Label_CustomChanged.Text := Format('(✔ %d )', [_applycount]);
+    UpdatePath(True);
+  end;
+end;
+
+procedure TFormMain.Action_CustomWeightExecute(Sender: TObject);
+begin
+  var _pos: TPointF := Button__CustomWeights.LocalToAbsolute(PointF(Button__CustomWeights.Width / 2 , Button__CustomWeights.Height));
+  Layout_CustomWeight.Position.X := _pos.X - (Layout_CustomWeight.Width / 2);
+  Layout_CustomWeight.Position.Y := _pos.Y + 2;
+  Layout_CustomWeight.Height := 220;
+  Layout_CustomWeight.Visible := not Layout_CustomWeight.Visible;
+
+  if Layout_CustomWeight.Visible then
+  RefreshStackManager(0);
+end;
+
+procedure TFormMain.Action_RestoreWeightsExecute(Sender: TObject);
+begin
+  if FBackup.IsAvailable then
+  begin
+    FBackup.Restore(FMapWeights, FPathFinder.Data);
+
+    ShowToastAlert('Restored to Backup');
+    UpdatePath(True);
+  end;
+end;
+
+procedure TFormMain.SetMapCategory(const Value: TMapCategory);
+begin
+  if FMapCategory <> Value then
+  begin
+    ComboBox_CustomWeight.Clear;
+    ListBox_CustomWeights.Items.Clear;
+
+    FMapCategory := Value;
+    FStackFileName := ExtractFilePath(ParamStr(0))+C_CatJson[Value];
+
+    try
+      var _NewManager := TWeightStackManager.Create(C_Category[Value], FStackFileName);
+      FreeAndNil(FWeightStackManager);
+      FWeightStackManager := _NewManager;
+    except
+      on E: Exception do
+      begin
+        ShowMessage('Failed to create new category: ' + E.Message);
+        Exit;
+      end;
+    end;
+
+    if FileExists(FStackFileName) then
+    begin
+      FWeightStackManager.LoadFromFile(FStackFileName);
+      RefreshStackManager(5);
+    end;
+  end;
+end;
+
+procedure TFormMain.ComboBox_CategoryChange(Sender: TObject);
+begin
+  var _index := ComboBox_Category.ItemIndex;
+  if _index >= 0 then
+  begin
+    var _category: TMapCategory := FMapCategory;
+    var _catfile: string := C_CatJson[TMapCategory(_index)];
+    if TMapCategory(_index) <> _category then
+    begin
+      MapCategory := TMapCategory(_index);
+    end;
+  end;
+end;
+
+procedure TFormMain.ComboBox_CustomWeightChange(Sender: TObject);
+begin
+  if ComboBox_CustomWeight.ItemIndex >= 0 then
+  begin
+    var _name := ComboBox_CustomWeight.Items[ComboBox_CustomWeight.ItemIndex];
+    Button_ApplyWeights.Enabled := FWeightStackManager.IsStackValid(_name);
+    if not Button_ApplyWeights.Enabled then Exit;
+
+    ListBox_CustomWeights.Items.Clear;
+    var _Stack := FWeightStackManager.GetStack(_name);
+    Text_CustomValue.Text := IntToStr(_Stack.Key);
+    Label_TargetValues.Text := Format('Target Values (%d) : ', [_Stack.Count]);
+
+    var _Array := _Stack.ToArray;
+    if Length(_Array) > 0 then
+      begin
+        with ListBox_CustomWeights do
+        for var _value in _Array do
+          Items.Add(IntToStr(_value));
+      end
+    else
+      ListBox_CustomWeights.Items.Clear;
+  end;
+end;
+
+procedure TFormMain.RefreshStackManager(const AFlag: Integer = 0; const AName: string = '');
+begin
+  ComboBox_CustomWeight.Clear;
+  for var _name in FWeightStackManager.GetNames do
+  begin
+    ComboBox_CustomWeight.Items.Add(_name);
+  end;
+
+  var _index := ComboBox_CustomWeight.Items.IndexOf(FWeightStackManager.CurrentName);
+  if AName <> '' then
+    _index := ComboBox_CustomWeight.Items.IndexOf(AName);
+  if _index >= 0 then
+    begin
+      ComboBox_CustomWeight.ItemIndex := _index;                                // Update ListBox_CustomWeights.Items
+    end
+  else
+    begin
+      if ComboBox_CustomWeight.Items.Count > 0 then
+      ComboBox_CustomWeight.ItemIndex := 0;                                     // Update ListBox_CustomWeights.Items
+    end;
+end;
+
+procedure TFormMain.Action_CustomApplayToMapExecute(Sender: TObject);
+begin
+  var _stackname := '';
+  var _index := ComboBox_CustomWeight.ItemIndex;
+  if (_index >= 0) and (ListBox_CustomWeights.Items.Count > 0) then
+  begin
+    CustomColorFlag := False;
+    _stackname := ComboBox_CustomWeight.Items[_index];
+    var _Key := FWeightStackManager.GetStackKey(_stackname);
+    ApplyTerrainCustomization(1, _stackname, FCurrentWeight, _Key);
+    //Layout_CustomWeight.Visible := False;
+  end;
+end;
+
+procedure TFormMain.Action_CustonRenameExecute(Sender: TObject);
+begin
+  if ComboBox_CustomWeight.ItemIndex >= 0 then
+  begin
+    var _oname := ComboBox_CustomWeight.Items[ComboBox_CustomWeight.ItemIndex];
+
+    Edit_InputName.Text := _oname;
+    with Layout_InputQuery do
+    begin
+      Position.X := Layout_CustomWeight.Position.X - Layout_InputQuery.Width + Layout_Category.Width;//  25;
+      Position.Y := Layout_CustomWeight.Position.Y + 30;
+
+      Visible := True;
+      BringToFront;
+    end;
+  end;
+end;
+
+procedure TFormMain.Button_IQ_CancelClick(Sender: TObject);
+begin
+  Layout_InputQuery.SendToBack;
+  Layout_InputQuery.Visible := False;
+end;
+
+procedure TFormMain.Button_IQ_OKClick(Sender: TObject);
+begin
+  var _old := ComboBox_CustomWeight.Items[ComboBox_CustomWeight.ItemIndex];
+  var _new := Edit_InputName.Text;
+
+  if _new <> '' then
+  begin
+    if Trim(LowerCase(_new)) = Trim(LowerCase(_old)) then
+      begin
+        ShowMessage('Warning - Same Name.');
+        Exit;
+      end;
+    if FWeightStackManager.ChangeStackName(_old, _new) then
+      begin
+        RefreshStackManager(3, _new);
+        ShowToastAlert(Format('%s > %s', [_old, _new]));
+      end
+    else
+      ShowMessage('Failed to Change Name.');
+  end;
+
+  Layout_InputQuery.SendToBack;
+  Layout_InputQuery.Visible := False;
+end;
+
+procedure TFormMain.Action_CustomRefreshCatExecute(Sender: TObject);
+begin
+  //
+end;
+
+procedure TFormMain.Action_CustomApplyToAllExecute(Sender: TObject);
+begin
+  //
+end;
+
+procedure TFormMain.Action_CustomDeleteExecute(Sender: TObject);
+begin
+  var _index := ComboBox_CustomWeight.ItemIndex;
+  if _index < 0 then Exit;
+
+  var _stackname := ComboBox_CustomWeight.Items[_index];
+  FWeightStackManager.RemoveStack(_stackname);
+  RefreshStackManager(1);
+end;
+
+procedure TFormMain.Button_CloseClick(Sender: TObject);
+begin
+  Layout_CustomWeight.Visible := False;
+end;
+
+procedure TFormMain.pm_ApplyToAllClick(Sender: TObject);
+begin
+  Action_CustomApplyToAllExecute(Self);
+end;
+
+procedure TFormMain.pm_ApplyToMapClick(Sender: TObject);
+begin
+  Action_CustomApplayToMapExecute(Self);
+end;
+
+procedure TFormMain.pm_ChangeNameClick(Sender: TObject);
+begin
+  Action_CustonRenameExecute(Self);
+end;
+
+procedure TFormMain.pm_DeleteClick(Sender: TObject);
+begin
+  Action_CustomDeleteExecute(Self);
+end;
+
+procedure TFormMain.pm_LoadFromFileClick(Sender: TObject);
+begin
+  OpenDialog_Custom.InitialDir := ParamStr(0);
+  OpenDialog_Custom.FileName :=   ExtractFileName(FStackFileName);
+  if OpenDialog_Custom.Execute then
+  begin
+    FWeightStackManager.LoadFromFile(OpenDialog_Custom.FileName);
+    RefreshStackManager(4);
+    ShowToastAlert('Category -'+ ExtractFileName(OpenDialog_Custom.FileName) );
+  end;
+end;
+
+procedure TFormMain.pm_RefreshClick(Sender: TObject);
+begin
+  RefreshStackManager(6);
+end;
+
+procedure TFormMain.pm_SaveToFileClick(Sender: TObject);
+begin
+  SaveDialog_Custom.InitialDir:= ParamStr(0);
+  SaveDialog_Custom.FileName :=  ExtractFileName(FStackFileName);
+  if SaveDialog_Custom.Execute then
+  begin
+    FWeightStackManager.SaveToFile(SaveDialog_Custom.FileName);
+    if FileExists(SaveDialog_Custom.FileName) then
+      ShowToastAlert('Category -' + ExtractFileName(SaveDialog_Custom.FileName) );
+  end;
+end;
 
 end.

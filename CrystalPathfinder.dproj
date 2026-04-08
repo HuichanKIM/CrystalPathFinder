@@ -292,6 +292,7 @@
         <DCCReference Include="Unit_Resources.pas">
             <Form>Form_Resources</Form>
         </DCCReference>
+        <DCCReference Include="uWeightStackManager.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

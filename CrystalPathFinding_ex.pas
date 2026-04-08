@@ -110,6 +110,7 @@ type
     procedure Release;
     procedure Free; inline;
     procedure Assign(const APoints: array of TPoint; ADistance: Double);
+    function  Clone: TTileMapPath;
   end;
 
   PPathNode  = ^TPathNode;
@@ -227,15 +228,15 @@ type
     function  AcquireContext: PThreadContext;
     procedure ReleaseContext(ACtx: PThreadContext);
     { Prepare context buffers immediately before a search }
-    procedure PrepareContext(ACtx: PThreadContext; AMapSize: Integer);
+    procedure PrepareContext(ACtx: PThreadContext; const AMapSize: Integer);
     { Improved Heuristic Algorythem }
     function  GetHeuristic(const AP1, AP2: TPoint): Single; inline;
     procedure ArgumentTest(const AColumns, ARows: Integer; AKind: TTileMapKind);
   protected
     function DoFindPath(const AParams: TTileMapParams): TTileMapPath; virtual;
   public
-    constructor Create(AColumns, ARows: Integer;
-                       AKind: TTileMapKind = TTileMapKind.mkSimple;
+    constructor Create(const AColumns, ARows: Integer;
+                       const AKind: TTileMapKind = TTileMapKind.mkSimple;
                        const AHexOffset: TTileMapHexOffset = TTileMapHexOffset.hoOddR);
     destructor  Destroy; override;
 
@@ -296,6 +297,19 @@ begin
   end;
   Count    := 0;
   Distance := 0;
+end;
+
+function TTileMapPath.Clone: TTileMapPath;
+begin
+  Result.Count := Count;
+  Result.Distance := Distance;
+  if Count > 0 then
+    begin
+      GetMem(Result.Points, SizeOf(TPoint) * Count);
+      Move(Points^, Result.Points^, SizeOf(TPoint) * Count);
+    end
+  else
+    Result.Points := nil;
 end;
 
 procedure TTileMapPath.Free;
@@ -427,7 +441,8 @@ begin
     end;
 end;
 
-constructor TTileMap.Create(AColumns, ARows: Integer; AKind: TTileMapKind;
+constructor TTileMap.Create(const AColumns, ARows: Integer;
+                            const AKind: TTileMapKind;
                             const AHexOffset: TTileMapHexOffset);
 begin
   inherited Create;
@@ -557,7 +572,7 @@ end;
 {  Heap:                                                               }
 {    FCount reset to 0. FData raw pointer is reused as-is.             }
 { -------------------------------------------------------------------- }
-procedure TTileMap.PrepareContext(ACtx: PThreadContext; AMapSize: Integer);
+procedure TTileMap.PrepareContext(ACtx: PThreadContext; const AMapSize: Integer);
 begin
   { --- NodePool --- }
   var _NewPoolSize := GetOptimalPoolSize(AMapSize);
@@ -935,7 +950,7 @@ begin
     var _CellIdx:  Integer   := 0;
 
     { Seed start nodes }
-    for var _j := 0 to High(AParams.Starts) do  // Real count = 1 ...
+    for var _j := 0 to High(AParams.Starts) do                                  // Real count of AParams.Starts = 1 ...
     begin
       if not IsValid(AParams.Starts[_j]) then Continue;
       _CellIdx := AParams.Starts[_j].Y * _SnapWidth + AParams.Starts[_j].X;
@@ -997,8 +1012,9 @@ begin
           _TempPath[_i] := _Tracer^.Pos;
           _Tracer := _Tracer^.Parent;
         end;
-
+        { Result --------------------------- }
         Result.Assign(_TempPath, _Current^.G);
+        { Result --------------------------- }
         Break;
       end;
 
@@ -1079,7 +1095,7 @@ begin
           _VisitedG[_CellIdx]   := _NewG;
           _VisitedGen[_CellIdx] := _MyGen;
 
-          if _PoolCount >= _MaxNodes then
+          if _PoolCount >= _MaxNodes then   { Memory Safe ... }
           begin
             var _mpos := Length(_Ctx^.NodePool);
             _MaxNodes := _mpos + _MapSize;
