@@ -19,7 +19,7 @@
 
 ## 🚩 Architecture — Image Processing Pipeline
 
-![./Images/pipeline](./images/pipeline.png)
+![./Images/pipeline0](./Images/pipeline0.png)
 
 ## 📺 Screenshots
 
