@@ -17,6 +17,10 @@
 
 * **Flexible Map Configurations**: Full support for 4-way (Simple), 8-way (Diagonal), and custom weighting systems.
 
+## 🚩 Architecture — Image Processing Pipeline
+
+![./Images/pipeline](./images/pipeline.png)
+
 ## 📺 Screenshots
 
 * Original Image (from Google Map / Seoul, Korea )
