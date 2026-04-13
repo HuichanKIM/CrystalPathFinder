@@ -12,8 +12,9 @@ uses
   System.Variants,
   System.Math,
   System.Math.Vectors,
-  Winapi.Windows,
-  Winapi.Messages,
+
+  Winapi.Windows,        { - for Windows PlatForm}
+
   FMX.Types,
   FMX.Graphics,
   FMX.Controls,
@@ -49,20 +50,18 @@ type
     class function CastBool<T>(AExpression: Boolean; const ATrue, AFalse: T): T; static;
   end;
 
-procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer);
+procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer=0);
 procedure ShowFixedMsg(const ATitle, AMsg: string);
-procedure RGBToHSV(const R, G, B: Byte; out H, S, V: Single);
-function MakeAlphaColor(Color: TAlphaColor; Alpha: Byte): TAlphaColor;
-function CheckPointF(const PF1, PF2: TPointF): Boolean;
-function WinGetTickCount(): Cardinal;
-function Clamp_I(const Value, Min, Max: Integer): Integer;
-function Clamp_D(const Value, Min, Max: Single): Single;
-function GetColorFromHSL(AHH, ASS, ALL: Single): TAlphaColor;
-function CaptureComponent(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
 
-function ReadAllText_Unicode(const AFilePath: string=''): string;
-function WriteAllText_Unicode(const AFilePath, AContents: string): Boolean;
+procedure RGBToHSV(const R, G, B: Byte; out H, S, V: Single); overload;
+procedure RGBToHSV(const ARGB: TAlphaColor; out H, S, V: Single); overload;
+procedure HSVToRGB(const H, S, V: Single; out R, G, B: Byte);
 
+function  MakeAlphaColor(const AColor: TAlphaColor; const AAlpha: Byte): TAlphaColor; overload;
+function  MakeAlphaColor(const AR, AG, AB: Byte; const AA: Byte = $FF): TAlphaColor; overload;
+function  MakeAlphaColor(const AColor: TAlphaColor; const AOpacity: Single): TAlphaColor; overload;
+
+function  CaptureComponent(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
 procedure CaptureCleanWorkArea(const AFileName: string);
 procedure CaptureScreenToFile(const AFileName: string);
 
@@ -70,17 +69,8 @@ implementation
 
 uses
   SYstem.UIConsts,
-  Vcl.Graphics,
+  Vcl.Graphics, { - for Windows PlatForm}
   Unit_Main;
-
-{ Message DIalog }
-
-{
-
-[ Pro Tips ]
-• Terrain is automatically analyzed based on colors (e.g., dark/blue for walls, green for high-cost, gray for roads).
-• Use the 'Options' menu to change grid type (Hexagonal, Diagonal) and adjust tile size.
-}
 
 const
     C_ShortKeys = '''
@@ -121,296 +111,8 @@ const
                   Developed with the help of AI (Gemini, Claude)
                 ''';
 
-{ Replacing anonymous methods ------------------------------------------------ }
 
-type
-  TKeyHandler = class(TComponent)
-  public
-    procedure FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
-  end;
-
-procedure TKeyHandler.FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
-begin
-  if Key = vkEscape then
-    begin
-      TForm(Sender).ModalResult := mrCancel;
-      Key := 0;
-    end else
-  if (KeyChar = 'h') then
-    begin
-      TForm(Sender).ModalResult := mrCancel;
-    end;
-  if (KeyChar = 'u') then
-    begin
-      FormMain.Action_ScreenCapExecute(nil);
-    end;
-end;
-
-{ Help / Info ---------------------------------------------------------------- }
-
-procedure ShowFixedMsg(const ATitle, AMsg: string);
-const
-  c_Welcome = ' - Welcome to Crystal Path Finder';
-begin
-  var _MsgForm := TForm.CreateNew(Application);
-  var _Handler: TKeyHandler := TKeyHandler.Create(_MsgForm);
-
-  try
-    if (Application.MainForm <> nil) and
-       (Application.MainForm.StyleBook <> nil) then
-    _MsgForm.StyleBook := Application.MainForm.StyleBook;
-
-    with _MsgForm do
-    begin
-      if ATitle <> '' then Caption := ' '+ATitle+c_Welcome
-                      else Caption := 'Crystal Path Finder - 2026';
-      Width := 550;
-      Height := 700;
-      Position := TFormPosition.MainFormCenter;
-      BorderStyle := TFmxFormBorderStyle.Single; // None - No Title
-      BorderIcons := [];
-
-      OnKeyDown := _Handler.FormKeyDown;
-    end;
-
-    var _MsgText := TMemo.Create(_MsgForm);
-    with _MsgText do
-    begin
-      Parent := _MsgForm;
-      Align := TAlignLayout.Client;
-      Margins.Rect := TRectF.Create(10, 10, 10, 50);
-      ReadOnly := True;
-      HitTest := False;
-      if AMsg <> '' then Text := AMsg
-                    else Text := C_ShortKeys;
-
-      StyledSettings := StyledSettings - [TStyledSetting.Family, TStyledSetting.Size];
-      TextSettings.Font.Family := 'Consolas';
-      TextSettings.Font.Size := 14;
-    end;
-
-    var _OkBtn := TButton.Create(_MsgForm);
-    with _OkBtn do
-    begin
-      Parent := _MsgForm;
-      Text := 'OK';
-      Width := 80;
-      Height := 30;
-      CanFocus := True;
-
-      Position.X := (_MsgForm.Width - Width) / 2;
-      Position.Y := _MsgForm.Height - 75;
-      Anchors :=[TAnchorKind.akBottom];
-      Default := True;
-
-      ModalResult := mrOk;
-    end;
-
-    _MsgForm.ShowModal;
-  finally
-    _MsgForm.Free;
-  end;
-end;
-
-{ CaptureScreen -------------------------------------------------------------- }
-
-procedure CaptureScreenToFile(const AFileName: string);
-begin
-  var _dc: HDC := GetDC(0);
-  var _vclBmp: Vcl.Graphics.TBitmap := Vcl.Graphics.TBitmap.Create;
-  try
-    _vclBmp.SetSize(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-    BitBlt(_vclBmp.Canvas.Handle, 0, 0, _vclBmp.Width, _vclBmp.Height, _dc, 0, 0, SRCCOPY);
-    _vclBmp.PixelFormat := Vcl.Graphics.TPixelFormat.pf32bit;
-    _vclBmp.SaveToFile(AFileName);
-  finally
-    _vclBmp.Free;
-    ReleaseDC(0, _dc);
-  end;
-end;
-
-procedure CaptureCleanWorkArea(const AFileName: string);
-var
-  _WorkRect: TRect;
-begin
-  if not SystemParametersInfo(SPI_GETWORKAREA, 0, @_WorkRect, 0) then
-  begin
-    _WorkRect := Rect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-  end;
-
-  var _dc: HDC := GetDC(0);
-  var _vclBmp: Vcl.Graphics.TBitmap := Vcl.Graphics.TBitmap.Create;
-  try
-    _vclBmp.SetSize(_WorkRect.Width, _WorkRect.Height);
-    BitBlt(_vclBmp.Canvas.Handle, 0, 0, _vclBmp.Width, _vclBmp.Height,
-           _dc, _WorkRect.Left, _WorkRect.Top, SRCCOPY);
-    _vclBmp.PixelFormat := Vcl.Graphics.TPixelFormat.pf32bit;
-    _vclBmp.SaveToFile(AFileName);
-  finally
-    _vclBmp.Free;
-    ReleaseDC(0, _dc);
-  end;
-end;
-
-{ Global_TrimAppMemorySizeEx ------------------------------------------------- }
-
-procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer);
-begin
-  if AStrategy = 0 then
-  begin
-    var _MainHandle: THandle := Winapi.Windows.OpenProcess(PROCESS_ALL_ACCESS, False, Winapi.Windows.GetCurrentProcessID);
-    if _MainHandle > 0 then
-    try
-      Winapi.Windows.SetProcessWorkingSetSize(_MainHandle, High(SIZE_T), High(SIZE_T));   // Win64
-    finally
-      Winapi.Windows.CloseHandle(_MainHandle);
-    end;
-  end;
-  Application.ProcessMessages;
-end;
-
-{ From Winapi.Windows }
-function WinGetTickCount(): Cardinal;
-begin
-  Result := Winapi.Windows.GetTickCount;
-end;
-
-function CheckPointF(const PF1, PF2: TPointF): Boolean;
-begin
-  Result := PF2.EqualsTo(PF1);
-end;
-
-{ Color Functions ------------------------------------------------------------ }
-
-{ ---- RGB to HSV Conversion ------------------------------------------------- }
-{ System.UIConsts.RGBToHSL computes L (Lightness) as (Max+Min)/2, which        }
-{ over-darkens highly saturated deep greens and makes them hard to             }
-{ distinguish from shadows.                                                    }
-{ HSV's V = Max(R,G,B) is a better fit for separating vegetation               }
-{ from shadows in satellite imagery.                                           }
-
-procedure RGBToHSV(const R, G, B: Byte; out H, S, V: Single);
-var
-  _RF, _GF, _BF, _MaxC, _MinC, _Delta: Single;
-begin
-  _RF    := R / 255.0;
-  _GF    := G / 255.0;
-  _BF    := B / 255.0;
-  _MaxC  := Max(_RF, Max(_GF, _BF));
-  _MinC  := Min(_RF, Min(_GF, _BF));
-  _Delta := _MaxC - _MinC;
-  V     := _MaxC;
-  if _MaxC > 0   then S := _Delta / _MaxC else S := 0;
-  if _Delta = 0  then H := 0  else
-  if _MaxC = _RF then H := 60.0 * (_GF - _BF) / _Delta else
-  if _MaxC = _GF then H := 60.0 * ((_BF - _RF) / _Delta + 2.0)
-                 else H := 60.0 * ((_RF - _GF) / _Delta + 4.0);
-  if H < 0 then H := H + 360.0;
-end;
-
-{ From Delphi 13 - System.UIConsts ------------------------------------------- }
-
-procedure RGB2HSL(const RGB: TAlphaColor; out H, S, L: Single);   { = Copy from RGBToHSL }
-var
-  _R, _G, _B: Single;
-  _D, _mx, _mn: Single;
-
-  function _Max(AVarFirst, AVarSecond : Single) : Single ;
-  begin
-    if AVarFirst < AVarSecond then
-      Result := AVarSecond
-    else
-      Result := AVarFirst ;
-  end ;
-
-  function _Min(AVarFirst, AVarSecond : Single) : Single ;
-  begin
-    if AVarFirst > AVarSecond then
-      Result := AVarSecond
-    else
-      Result := AVarFirst ;
-  end ;
-
-begin
-  _R  := TAlphaColorRec(RGB).R / $FF;
-  _G  := TAlphaColorRec(RGB).G / $FF;
-  _B  := TAlphaColorRec(RGB).B / $FF;
-  _mx := _Max(_Max(_R, _G), _B);
-  _mn := _Min(_Min(_R, _G), _B);
-  H  := (_mx + _mn) / 2;
-  L  := H;
-  S  := H;
-
-  if (_mx = _mn) then
-    begin
-      S := 0;
-      H := 0;
-    end
-  else
-    begin
-      _D := _mx - _mn;
-      if L > 0.5  then S := _D / (2 - _mx - _mn)
-                  else S := _D / (_mx + _mn);
-      if (_mx = _R) then H := (_G - _B) / _D else
-      if (_mx = _G) then H := (_B - _R) / _D + 2
-                    else H := (_R - _G) / _D + 4;
-      H := H / 6;
-      if H < 0    then H := H + 1;
-    end;
-end;
-
-function RGBtoHSL(const AR, AG, AB: Byte; out H, S, L: Single): TAlphaCOlor;
-begin
-  var _RGBCOlor := MakeColor(AR, AG, AB, 255);
-  RGB2HSL(_RGBCOlor, H, S, L);
-end;
-
-function MakeAlphaColor(Color: TAlphaColor; Alpha: Byte): TAlphaColor;
-var
-  _Rec: TAlphaColorRec;
-begin
-  _Rec.Color := Color;
-  _Rec.A := Alpha;
-  Result := _Rec.Color;
-end;
-
-function GetColorFromHSL(AHH, ASS, ALL: Single): TAlphaColor;
-begin
-  Result :=  SYstem.UIConsts.HSLtoRGB(AHH, ASS, ALL);
-end;
-
-{ Returns a color based on direction angle using HSL color model
-   Creates rainbow-like directional coloring often used in generative art }
-
-function GetDirectionColor(const Angle: Single): TAlphaColor;  overload;
-begin
-  // Normalize angle to 0..1 range for hue
-  var _Hue := Frac((Angle / (2 * Pi)) + 0.5);   // Hue ranging from 0.0 to 1.0
-
-  // 1. HSL → RGB conversion (System.UIConsts unit required)
-  // Hue: 0..1, Saturation: 0.85, Lightness: 0.65 → vivid but not too bright
-  Result := SYstem.UIConsts.HSLtoRGB(_Hue, 0.85, 0.65);     // Alpha = $FF Auto apply
-
-  // 2. with TAlphaColorF
-  // var _AF := TAlphaColorF.Create(HSLtoRGB(_Hue, 0.85, 0.65));
-  // Result := _AF.ToAlphaColor;
-end;
-
-function GetDirectionColor(const Angle, Speed: Single): TAlphaColor;  overload;
-begin
-  //// Normalize angle to 0..1 range for hue
-  var _Hue := Frac((Angle / (2 * Pi)) + 0.5);  // Hue ranging from 0.0 to 1.0
-
-  // 1. HSL → RGB conversion (System.UIConsts unit required)
-  // Hue: 0..1, Saturation: 0.85, Lightness: 0.65 → vivid but not too bright
-  Result := SYstem.UIConsts.HSLtoRGB(_Hue, 0.85, 0.65);     // Alpha = $FF  Auto apply
-
-  // 2. with TAlphaColorF
-  // var _AF := TAlphaColorF.Create(HSLtoRGB(_Hue, 0.85, 0.65));
-  // Result := _AF.ToAlphaColor;
-end;
-
-{ MousePosChecker ------------------------------------------------------------ }
+{ TFormHelper / MousePosChecker ---------------------------------------------- }
 
 function TFormHelper.IsMouseInside(): Boolean;
 begin
@@ -422,6 +124,7 @@ begin
   // TRectF.Contains returns True if the point is within the rectangle.
   Result := TRectF.Create(0, 0, Self.ClientWidth, Self.ClientHeight).Contains(_RelativePos);
 end;
+
 
 { TControlHelper ------------------------------------------------------------- }
 
@@ -483,6 +186,343 @@ begin
     Result := Self;
 end;
 
+{ Replacing anonymous methods ------------------------------------------------ }
+
+type
+  TKeyHandler = class(TComponent)
+  public
+    procedure FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+  end;
+
+procedure TKeyHandler.FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+begin
+  if Key = vkEscape then
+    begin
+      TForm(Sender).ModalResult := mrCancel;
+      Key := 0;
+    end else
+  if (KeyChar = 'h') then
+    begin
+      TForm(Sender).ModalResult := mrCancel;
+    end;
+  if (KeyChar = 'u') then
+    begin
+      FormMain.Action_ScreenCapExecute(nil);
+    end;
+end;
+
+{ Help / Info ---------------------------------------------------------------- }
+
+procedure ShowFixedMsg(const ATitle, AMsg: string);
+const
+  c_Welcome = ' - Welcome to Crystal Path Finder';
+begin
+  var _MsgForm := TForm.CreateNew(Application);
+  var _Handler: TKeyHandler := TKeyHandler.Create(_MsgForm);
+
+  try
+    if (Application.MainForm <> nil) and
+       (Application.MainForm.StyleBook <> nil) then
+    _MsgForm.StyleBook := Application.MainForm.StyleBook;
+
+    with _MsgForm do
+    begin
+      if ATitle <> '' then Caption := ' '+ATitle+c_Welcome
+                      else Caption := 'Crystal Path Finder - 2026';
+      Width := 550;
+      Height := 700;
+      Position := TFormPosition.MainFormCenter;
+      BorderStyle := TFmxFormBorderStyle.Single;
+      BorderIcons := [];
+
+      OnKeyDown := _Handler.FormKeyDown;
+    end;
+
+    var _MsgText := TMemo.Create(_MsgForm);
+    with _MsgText do
+    begin
+      Parent := _MsgForm;
+      Align := TAlignLayout.Client;
+      Margins.Rect := TRectF.Create(10, 10, 10, 50);
+      ReadOnly := True;
+      HitTest := False;
+      if AMsg <> '' then Text := AMsg
+                    else Text := C_ShortKeys;
+
+      StyledSettings := StyledSettings - [TStyledSetting.Family, TStyledSetting.Size];
+      TextSettings.Font.Family := 'Consolas';
+      TextSettings.Font.Size := 14;
+    end;
+
+    var _OkBtn := TButton.Create(_MsgForm);
+    with _OkBtn do
+    begin
+      Parent := _MsgForm;
+      Text := 'OK';
+      Width := 80;
+      Height := 30;
+      CanFocus := True;
+
+      Position.X := (_MsgForm.Width - Width) / 2;
+      Position.Y := _MsgForm.Height - 75;
+      Anchors :=[TAnchorKind.akBottom];
+      Default := True;
+
+      ModalResult := mrOk;
+    end;
+
+    _MsgForm.ShowModal;
+  finally
+    _MsgForm.Free;
+  end;
+end;
+
+{ ... CaptureScreen / for Windows PlatForm --------------------------------------- }
+
+procedure CaptureScreenToFile(const AFileName: string);
+begin
+  var _dc: HDC := GetDC(0);
+  var _vclBmp: Vcl.Graphics.TBitmap := Vcl.Graphics.TBitmap.Create;
+  try
+    _vclBmp.SetSize(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+    BitBlt(_vclBmp.Canvas.Handle, 0, 0, _vclBmp.Width, _vclBmp.Height, _dc, 0, 0, SRCCOPY);
+    _vclBmp.PixelFormat := Vcl.Graphics.TPixelFormat.pf32bit;
+    _vclBmp.SaveToFile(AFileName);
+  finally
+    _vclBmp.Free;
+    ReleaseDC(0, _dc);
+  end;
+end;
+
+procedure CaptureCleanWorkArea(const AFileName: string);
+var
+  _WorkRect: TRect;
+begin
+  if not SystemParametersInfo(SPI_GETWORKAREA, 0, @_WorkRect, 0) then
+  begin
+    _WorkRect := Rect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+  end;
+
+  var _dc: HDC := GetDC(0);
+  var _vclBmp: Vcl.Graphics.TBitmap := Vcl.Graphics.TBitmap.Create;
+  try
+    _vclBmp.SetSize(_WorkRect.Width, _WorkRect.Height);
+    BitBlt(_vclBmp.Canvas.Handle, 0, 0, _vclBmp.Width, _vclBmp.Height,
+           _dc, _WorkRect.Left, _WorkRect.Top, SRCCOPY);
+    _vclBmp.PixelFormat := Vcl.Graphics.TPixelFormat.pf32bit;
+    _vclBmp.SaveToFile(AFileName);
+  finally
+    _vclBmp.Free;
+    ReleaseDC(0, _dc);
+  end;
+end;
+
+{ Global_TrimAppMemorySizeEx ------------------------------------------------- }
+
+procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer=0);
+begin
+  if AStrategy = 0 then
+  begin
+    var _MainHandle: THandle := Winapi.Windows.OpenProcess(PROCESS_ALL_ACCESS, False, Winapi.Windows.GetCurrentProcessID);
+    if _MainHandle > 0 then
+    try
+      Winapi.Windows.SetProcessWorkingSetSize(_MainHandle, High(SIZE_T), High(SIZE_T));   // Win64
+    finally
+      Winapi.Windows.CloseHandle(_MainHandle);
+    end;
+  end;
+  Application.ProcessMessages;
+end;
+
+{ From Winapi.Windows }
+
+function WinGetTickCount(): Cardinal;
+begin
+  Result := Winapi.Windows.GetTickCount;
+end;
+
+{ ... for Windows PlatForm --------------------------------------------------- }
+
+function CheckPointF(const PF1, PF2: TPointF): Boolean;
+begin
+  Result := PF2.EqualsTo(PF1);
+end;
+
+{ Color Functions ------------------------------------------------------------ }
+
+{ ---- RGB to HSV Conversion ------------------------------------------------- }
+{ System.UIConsts.RGBToHSL computes L (Lightness) as (Max+Min)/2, which        }
+{ over-darkens highly saturated deep greens and makes them hard to             }
+{ distinguish from shadows.                                                    }
+{ HSV's V = Max(R,G,B) is a better fit for separating vegetation               }
+{ from shadows in satellite imagery.                                           }
+
+procedure RGBToHSV(const R, G, B: Byte; out H, S, V: Single); overload;
+begin
+  var _RF    := R / 255.0;
+  var _GF    := G / 255.0;
+  var _BF    := B / 255.0;
+  var _MaxC  := Max(_RF, Max(_GF, _BF));
+  var _MinC  := Min(_RF, Min(_GF, _BF));
+  var _Delta := _MaxC - _MinC;
+
+  V     := _MaxC;
+  if _MaxC > 0   then S := _Delta / _MaxC else S := 0;
+  if _Delta = 0  then H := 0  else
+  if _MaxC = _RF then H := 60.0 * (_GF - _BF) / _Delta else
+  if _MaxC = _GF then H := 60.0 * ((_BF - _RF) / _Delta + 2.0)
+                 else H := 60.0 * ((_RF - _GF) / _Delta + 4.0);
+  if H < 0 then H := H + 360.0;
+end;
+
+procedure RGBToHSV(const ARGB: TAlphaColor; out H, S, V: Single); overload;
+begin
+  var _RF    := ARGB / 255.0;
+  var _GF    := ARGB / 255.0;
+  var _BF    := ARGB / 255.0;
+  var _MaxC  := Max(_RF, Max(_GF, _BF));
+  var _MinC  := Min(_RF, Min(_GF, _BF));
+  var _Delta := _MaxC - _MinC;
+
+  V     := _MaxC;
+  if _MaxC > 0   then S := _Delta / _MaxC else S := 0;
+  if _Delta = 0  then H := 0  else
+  if _MaxC = _RF then H := 60.0 * (_GF - _BF) / _Delta else
+  if _MaxC = _GF then H := 60.0 * ((_BF - _RF) / _Delta + 2.0)
+                 else H := 60.0 * ((_RF - _GF) / _Delta + 4.0);
+  if H < 0 then H := H + 360.0;
+end;
+
+{ ---- HSV to RGB Conversion ------------------------------------------------- }
+{ Exact inverse of RGBToHSV above.                                             }
+{ H : 0.0 ~ 360.0 (degrees)                                                    }
+{ S : 0.0 ~ 1.0                                                                }
+{ V : 0.0 ~ 1.0                                                                }
+{ R, G, B : 0 ~ 255                                                            }
+
+procedure HSVToRGB(const H, S, V: Single; out R, G, B: Byte);
+var
+  _Hi : Integer;
+  _F, _P, _Q, _T: Single;
+  _RF, _GF, _BF : Single;
+begin
+  if S <= 0.0 then
+  begin
+    { Achromatic — no hue, pure gray }
+    R := EnsureRange(Round(V * 255), 0, 255);
+    G := R;
+    B := R;
+    Exit;
+  end;
+
+  { Hue sector 0~5  (each sector spans 60°) }
+  _Hi := Trunc(H / 60.0) mod 6;
+  _F  := (H / 60.0) - Trunc(H / 60.0);   { fractional part within sector }
+
+  _P  := V * (1.0 - S);
+  _Q  := V * (1.0 - S * _F);
+  _T  := V * (1.0 - S * (1.0 - _F));
+
+  case _Hi of
+    0: begin _RF := V;  _GF := _T;  _BF := _P; end;
+    1: begin _RF := _Q; _GF := V;   _BF := _P; end;
+    2: begin _RF := _P; _GF := V;   _BF := _T; end;
+    3: begin _RF := _P; _GF := _Q;  _BF := V;  end;
+    4: begin _RF := _T; _GF := _P;  _BF := V;  end;
+  else { 5 }
+       _RF := V;  _GF := _P;  _BF := _Q;
+  end;
+
+  R := EnsureRange(Round(_RF * 255), 0, 255);
+  G := EnsureRange(Round(_GF * 255), 0, 255);
+  B := EnsureRange(Round(_BF * 255), 0, 255);
+end;
+
+{ From Delphi 13 - System.UIConsts ------------------------------------------- }
+
+procedure RGB2HSL(const RGB: TAlphaColor; out H, S, L: Single);   { = Copy from RGBToHSL }
+var
+  _R, _G, _B: Single;
+  _D, _mx, _mn: Single;
+
+  function _Max(AVarFirst, AVarSecond : Single) : Single ;
+  begin
+    if AVarFirst < AVarSecond then
+      Result := AVarSecond
+    else
+      Result := AVarFirst ;
+  end ;
+
+  function _Min(AVarFirst, AVarSecond : Single) : Single ;
+  begin
+    if AVarFirst > AVarSecond then
+      Result := AVarSecond
+    else
+      Result := AVarFirst ;
+  end ;
+
+begin
+  _R  := TAlphaColorRec(RGB).R / $FF;
+  _G  := TAlphaColorRec(RGB).G / $FF;
+  _B  := TAlphaColorRec(RGB).B / $FF;
+  _mx := _Max(_Max(_R, _G), _B);
+  _mn := _Min(_Min(_R, _G), _B);
+  H  := (_mx + _mn) / 2;
+  L  := H;
+  S  := H;
+
+  if (_mx = _mn) then
+    begin
+      S := 0;
+      H := 0;
+    end
+  else
+    begin
+      _D := _mx - _mn;
+      if L > 0.5  then S := _D / (2 - _mx - _mn)
+                  else S := _D / (_mx + _mn);
+      if (_mx = _R) then H := (_G - _B) / _D else
+      if (_mx = _G) then H := (_B - _R) / _D + 2
+                    else H := (_R - _G) / _D + 4;
+      H := H / 6;
+      if H < 0    then H := H + 1;
+    end;
+end;
+
+function RGBtoHSL(const AR, AG, AB: Byte; out H, S, L: Single): TAlphaCOlor;
+begin
+  var _RGBCOlor := MakeAlphaColor(AR, AG, AB, 255);
+  RGB2HSL(_RGBCOlor, H, S, L);
+end;
+
+{ Copy From System.UIConsts }
+
+function MakeAlphaColor(const AR, AG, AB: Byte; const AA: Byte = $FF): TAlphaColor; overload;
+begin
+  TAlphaColorRec(Result).R := AR;
+  TAlphaColorRec(Result).G := AG;
+  TAlphaColorRec(Result).B := AB;
+  TAlphaColorRec(Result).A := AA;
+end;
+
+function MakeAlphaColor(const AColor: TAlphaColor; const AOpacity: Single): TAlphaColor; overload;
+begin
+  Result := AColor;
+  if AOpacity < 1 then
+    TAlphaColorRec(Result).A := Trunc(TAlphaColorRec(Result).A * AOpacity);
+end;
+
+function MakeAlphaColor(const AColor: TAlphaColor; const AAlpha: Byte): TAlphaColor; overload;
+begin
+  Result := AColor;
+  TAlphaColorRec(Result).A := AAlpha;
+end;
+
+function GetColorFromHSL(AHH, ASS, ALL: Single): TAlphaColor;
+begin
+  Result :=  SYstem.UIConsts.HSLtoRGB(AHH, ASS, ALL);
+end;
+
 { IIF.Cast ------------------------------------------------------------------- }
 
 class function IIF.CastBool<T>(AExpression: Boolean; const ATrue, AFalse: T): T;
@@ -501,7 +541,7 @@ begin
                  else Result := Value;
 end;
 
-function Clamp_D(const Value, Min, Max: Single): Single;
+function Clamp_S(const Value, Min, Max: Single): Single;
 begin
   if Value < Min then Result := Min else
   if Value > Max then Result := Max

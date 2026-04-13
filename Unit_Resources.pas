@@ -13,7 +13,7 @@ uses
   FMX.Forms,
   FMX.Graphics,
   FMX.Dialogs,
-  FMX.Objects, FMX.Layouts, FMX.StdCtrls, FMX.Edit, FMX.Controls.Presentation;
+  FMX.Objects;
 
 type
   TForm_Resources = class(TForm)
@@ -23,13 +23,6 @@ type
     Image1: TImage;
     Path1: TPath;
     Image_Logo1: TImage;
-    Layout_InputQuery: TLayout;
-    Rectangle1: TRectangle;
-    Label1: TLabel;
-    Label2: TLabel;
-    Edit1: TEdit;
-    Button1: TButton;
-    Button2: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private

@@ -285,14 +285,19 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="uCommons.pas"/>
-        <DCCReference Include="CrystalPathFinding_ex.pas"/>
+        <DCCReference Include="uCrystalPathFinding.pas"/>
+        <DCCReference Include="uWeightStackManager.pas"/>
         <DCCReference Include="Unit_Main.pas">
             <Form>FormMain</Form>
         </DCCReference>
         <DCCReference Include="Unit_Resources.pas">
             <Form>Form_Resources</Form>
         </DCCReference>
-        <DCCReference Include="uWeightStackManager.pas"/>
+        <DCCReference Include="Unit_FrameNavi.pas">
+            <Form>Frame_Navigator</Form>
+            <FormType>fmx</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -2,8 +2,8 @@ object Form_Resources: TForm_Resources
   Left = 0
   Top = 0
   Caption = 'Form1'
-  ClientHeight = 848
-  ClientWidth = 824
+  ClientHeight = 572
+  ClientWidth = 680
   StyleBook = FormMain.StyleBook1
   FormFactor.Width = 320
   FormFactor.Height = 480
@@ -752,7 +752,7 @@ object Form_Resources: TForm_Resources
         FileName = 'E:\2024_PathFinding\FMX\PosIcon_S6.png'
       end>
     Position.X = 40.000000000000000000
-    Position.Y = 336.000000000000000000
+    Position.Y = 400.000000000000000000
     Size.Width = 113.000000000000000000
     Size.Height = 137.000000000000000000
     Size.PlatformDefault = False
@@ -1392,7 +1392,7 @@ object Form_Resources: TForm_Resources
         FileName = 'E:\2024_PathFinding\FMX\PosIcon_F6.png'
       end>
     Position.X = 161.000000000000000000
-    Position.Y = 336.000000000000000000
+    Position.Y = 400.000000000000000000
     Size.Width = 113.000000000000000000
     Size.Height = 137.000000000000000000
     Size.PlatformDefault = False
@@ -10092,7 +10092,7 @@ object Form_Resources: TForm_Resources
           'D:\RadStudio_Projects\2026PathFinding\InfoGraphics\CrystalIcon_0' +
           '.png'
       end>
-    Position.X = 353.000000000000000000
+    Position.X = 425.000000000000000000
     Position.Y = 32.000000000000000000
     Size.Width = 105.000000000000000000
     Size.Height = 113.000000000000000000
@@ -10122,7 +10122,7 @@ object Form_Resources: TForm_Resources
       D829BF420200000029D6D0420000B842020000000000C8420000B84203000000
       0000C8420000B842}
     Fill.Color = claDarkorange
-    Position.X = 489.000000000000000000
+    Position.X = 553.000000000000000000
     Position.Y = 40.000000000000000000
     Size.Width = 88.000000000000000000
     Size.Height = 105.000000000000000000
@@ -48542,76 +48542,10 @@ object Form_Resources: TForm_Resources
           590000000049454E44AE426082}
         FileName = 'D:\RadStudio_Projects\2026PathFinding\Images\logo1024.png'
       end>
-    Position.X = 432.000000000000000000
-    Position.Y = 153.000000000000000000
-    Size.Width = 329.000000000000000000
+    Position.X = 128.000000000000000000
+    Position.Y = 73.000000000000000000
+    Size.Width = 281.000000000000000000
     Size.Height = 281.000000000000000000
     Size.PlatformDefault = False
-  end
-  object Layout_InputQuery: TLayout
-    Position.X = 300.000000000000000000
-    Position.Y = 536.000000000000000000
-    Size.Width = 300.000000000000000000
-    Size.Height = 130.000000000000000000
-    Size.PlatformDefault = False
-    TabOrder = 6
-    object Rectangle1: TRectangle
-      Align = Contents
-      Fill.Color = xFF16253D
-      Size.Width = 300.000000000000000000
-      Size.Height = 130.000000000000000000
-      Size.PlatformDefault = False
-      Stroke.Color = claDarkgray
-      XRadius = 10.000000000000000000
-      YRadius = 10.000000000000000000
-      object Label1: TLabel
-        Align = Top
-        Margins.Left = 10.000000000000000000
-        Margins.Top = 10.000000000000000000
-        Margins.Right = 10.000000000000000000
-        Position.X = 10.000000000000000000
-        Position.Y = 10.000000000000000000
-        Size.Width = 280.000000000000000000
-        Size.Height = 17.000000000000000000
-        Size.PlatformDefault = False
-        Text = #55357#56462' Input Query'
-        TabOrder = 0
-      end
-      object Label2: TLabel
-        Position.X = 30.000000000000000000
-        Position.Y = 47.000000000000000000
-        Size.Width = 76.000000000000000000
-        Size.Height = 17.000000000000000000
-        Size.PlatformDefault = False
-        Text = 'New Name'
-        TabOrder = 1
-      end
-      object Edit1: TEdit
-        Touch.InteractiveGestures = [LongTap, DoubleTap]
-        TabOrder = 2
-        Position.X = 104.000000000000000000
-        Position.Y = 44.000000000000000000
-        Size.Width = 172.000000000000000000
-        Size.Height = 22.000000000000000000
-        Size.PlatformDefault = False
-      end
-      object Button1: TButton
-        Default = True
-        Position.X = 133.000000000000000000
-        Position.Y = 88.000000000000000000
-        TabOrder = 3
-        Text = 'OK'
-      end
-      object Button2: TButton
-        CanFocus = False
-        Position.X = 228.000000000000000000
-        Position.Y = 88.000000000000000000
-        Size.Width = 48.000000000000000000
-        Size.Height = 22.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 4
-        Text = 'Cancel'
-      end
-    end
   end
 end

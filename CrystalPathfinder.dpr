@@ -11,10 +11,11 @@ uses
   FMX.Types,
   FMX.Forms,
   uCommons in 'uCommons.pas',
-  CrystalPathFinding_ex in 'CrystalPathFinding_ex.pas',
+  uCrystalPathFinding in 'uCrystalPathFinding.pas',
+  uWeightStackManager in 'uWeightStackManager.pas',
   Unit_Main in 'Unit_Main.pas' {FormMain},
   Unit_Resources in 'Unit_Resources.pas' {Form_Resources},
-  uWeightStackManager in 'uWeightStackManager.pas';
+  Unit_FrameNavi in 'Unit_FrameNavi.pas' {Frame_Navigator: TFrame};
 
 {$R *.res}
 

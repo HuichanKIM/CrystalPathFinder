@@ -21,7 +21,7 @@ type
     function Pop: Byte;                         // Remove and return the last value
     procedure Clear;                            // Clear all values
     function Count: Integer;                    // Return number of elements
-    function Key: Integer;                      // Return Target Value
+    function Key: Byte;                         // Return Target Value
     function ToArray: TArray<Byte>;             // Return all values as an array
     procedure SetKeyValue(const AKey: Byte);
 
@@ -37,17 +37,17 @@ type
     FCurrentName: string;
     function GetCurrentStack: TWeightStack;
     procedure SetCurrentStack(const Value: TWeightStack);
+    function Exists(const AName: string): Boolean;
+    procedure CleanupEmptyStacks;
   public
     constructor Create(const AName, ASaveName: string);
     destructor Destroy; override;
 
-    function Exists(const AName: string): Boolean;
-    procedure CleanupEmptyStacks;
     function GetNames: TArray<string>;
-
     procedure AddStack(const AName: string);
     function AddStack_ex(const AName: string): TWeightStack;
     procedure RemoveStack(const AName: string);
+    procedure Clear;
     function GetStack(const AName: string): TWeightStack;
     procedure UpdateStack(const AName: string; const AStack: TWeightStack);
     function UpdateStackKey(const AName: string; const AKey: Byte): Boolean;
@@ -56,8 +56,8 @@ type
     function PushToCurrent(const AValue: Byte): Boolean;
     function PushToStack(const AName: string; const AValue: Byte): Boolean;
     { Sequencial Routine }
-    function PushToCurrent_seq(const ALow, AHigh: Byte; const AKey: Integer): Boolean;
-    function PushToStackUsr_seq(const AName: string; const ALow, AHigh: Byte; const AKey: Integer): Boolean;
+    function PushToCurrent_seq(const ALow, AHigh: Byte; const AKey: Byte): Boolean;
+    function PushToStackUsr_seq(const AName: string; const ALow, AHigh: Byte; const AKey: Byte): Boolean;
     function GetFromCurrent_seq(const AName: string; out ALow, AHigh, AKey: Byte): Boolean;
     function IsStackValid(const AName: string): Boolean;
     function ChangeStackName(const AOldName, ANewName: string): Boolean;
@@ -118,7 +118,7 @@ begin
   Result := FCount;
 end;
 
-function TWeightStack.Key: Integer;
+function TWeightStack.Key: Byte;
 begin
   Result := FKey;
 end;
@@ -146,7 +146,7 @@ begin
   if JSONObj = nil then Exit;
 
   Clear;
-  FKey   := JSONObj.GetValue<Integer>('Key');
+  FKey   := JSONObj.GetValue<Byte>('Key');
   FCount := JSONObj.GetValue<Integer>('Count');
   var _arr := JSONObj.GetValue<TJSONArray>('Items');
   if _arr <> nil then
@@ -272,7 +272,7 @@ begin
   end;
 end;
 
-function TWeightStackManager.PushToCurrent_seq(const ALow, AHigh: Byte; const AKey: Integer): Boolean;
+function TWeightStackManager.PushToCurrent_seq(const ALow, AHigh: Byte; const AKey: Byte): Boolean;
 begin
   if not FStacksDic.ContainsKey(FCurrentName) then Exit(False);
 
@@ -287,14 +287,14 @@ begin
   Result := True;
 end;
 
-function TWeightStackManager.GetStackKey(const AName: string): Integer;
+function TWeightStackManager.GetStackKey(const AName: string): Integer;         // Key = Byte ? Integer - Discriminant factors
 begin
   Result := -1;
   if FStacksDic.ContainsKey(AName) then
     Result := FStacksDic[AName].Key;
 end;
 
-function TWeightStackManager.PushToStackUsr_seq(const AName: string; const ALow, AHigh: Byte; const AKey: Integer): Boolean;
+function TWeightStackManager.PushToStackUsr_seq(const AName: string; const ALow, AHigh: Byte; const AKey: Byte): Boolean;
 begin
   var _Name := AName;
   if _Name = '' then _Name := 'U_' + FormatDateTime('mmddhhnnss', Now);
@@ -378,6 +378,12 @@ begin
   finally
     _keysToRemove.Free;
   end;
+end;
+
+procedure TWeightStackManager.Clear;
+begin
+  FStacksDic.Clear;
+  CleanupEmptyStacks;
 end;
 
 function TWeightStackManager.GetNames: TArray<string>;

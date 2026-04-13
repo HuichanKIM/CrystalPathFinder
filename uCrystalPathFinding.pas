@@ -93,7 +93,7 @@ type
     mkSimple,       // 4-directional movement (up/down/left/right)
     mkDiagonal,     // 8-directional movement (diagonals included, uniform cost)
     mkDiagonalEx,   // 8-directional movement (diagonal cost = √2)
-    mkHexagonal     // Hexagonal tiles (Offset coordinate system)
+    mkHexagonal     // Hexagonal tiles        (Offset coordinate system)
   );
 
   TTileMapWeights  = array[0..MaxInt div SizeOf(Byte) - 1] of Byte;
