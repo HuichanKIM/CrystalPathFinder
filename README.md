@@ -53,7 +53,7 @@
 *   **Algorithm:** Optimized A* with Binary Heap implementation
 
 *   **Optimization:** Optimization: Parallel Programming Library (PPL) for multi-threaded performance
-*   **Helped by AI:** Much of the code in this program has been written with the help of Google Gemini.
+*   **Helped by AI:** Much of the code in this program has been written with the help of Google Gemini, Claude.
 *   **Inspired by:** Crystal Path Finding <https://github.com/d-mozulyov/CrystalPathFinding>
 *   **Optional:** FastMM4 Lib.<https://github.com/maximmasiutin/FastMM4-AVX>
 
