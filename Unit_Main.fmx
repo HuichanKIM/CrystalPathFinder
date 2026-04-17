@@ -9,7 +9,7 @@ object FormMain: TFormMain
   Position = ScreenCenter
   StyleBook = StyleBook1
   Constraints.MinHeight = 800.000000000000000000
-  Constraints.MinWidth = 800.000000000000000000
+  Constraints.MinWidth = 850.000000000000000000
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -100,7 +100,6 @@ object FormMain: TFormMain
           Size.Height = 28.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 0
-          Text = #55357#56580' Reset'
           ParentShowHint = False
           ShowHint = True
         end
@@ -206,47 +205,6 @@ object FormMain: TFormMain
         TabOrder = 3
       end
     end
-    object Path_Compass: TPath
-      Data.BoundsMode = ShapeBounds
-      Data.Path = {
-        33000000000000000000C8420000A041010000000000FA420000964201000000
-        000034430000C842010000000000FA420000FA42010000000000C84200003443
-        01000000000096420000FA42010000000000A0410000C8420100000000009642
-        00009642030000000000C8420000A041000000000000C8420000704202000000
-        35D19B4200007042020000000000704235D19B4202000000000070420000C842
-        0200000000007042CA2EF4420200000034D19B4200000C4302000000FFFFC742
-        00000C4302000000CB2EF44200000C430200000000000C43CB2EF44202000000
-        00000C430000C8420200000000000C4336D19B4202000000CC2EF44201007042
-        020000000100C84200007042030000000000C84200007042000000000000C842
-        0000A042020000006517DE420000A042020000000000F0429BE8B14202000000
-        0000F0420000C842020000000000F0426517DE42020000006517DE420000F042
-        020000000000C8420000F042020000009BE8B1420000F042020000000000A042
-        6517DE42020000000000A0420000C842020000000000A0429AE8B14202000000
-        9BE8B1420000A042020000000000C8420000A042030000000000C8420000A042
-        000000000000C8420000B84202000000D729BF420000B842020000000000B842
-        D729BF42020000000000B8420000C842020000000000B84228D6D04202000000
-        D729BF420000D842020000000000C8420000D8420200000029D6D0420000D842
-        020000000000D84229D6D042020000000000D8420000C842020000000000D842
-        D829BF420200000029D6D0420000B842020000000000C8420000B84203000000
-        0000C8420000B842}
-      Fill.Color = claDarkblue
-      Margins.Top = 2.000000000000000000
-      Margins.Bottom = 2.000000000000000000
-      Position.X = 20.000000000000000000
-      Position.Y = 60.000000000000000000
-      Size.Width = 40.000000000000000000
-      Size.Height = 40.000000000000000000
-      Size.PlatformDefault = False
-      Stroke.Color = claWhite
-      WrapMode = Fit
-      object ShadowEffect1: TShadowEffect
-        Distance = 3.000000000000000000
-        Direction = 45.000000000000000000
-        Softness = 0.500000000000000000
-        Opacity = 0.800000011920929000
-        ShadowColor = claBlack
-      end
-    end
     object Layout_CustomWeight: TLayout
       HitTest = True
       Opacity = 0.899999976158142100
@@ -302,11 +260,11 @@ object FormMain: TFormMain
               Size.Width = 12.000000000000000000
               Size.Height = 12.000000000000000000
               Size.PlatformDefault = False
-              TabOrder = 4
+              TabOrder = 5
             end
           end
-          object Button_AllWeights: TButton
-            Action = Action_CustomApplyToAll
+          object Button_SaveAllWeights: TButton
+            Action = Action_CustomBackup
             Align = Left
             CanFocus = False
             ImageIndex = -1
@@ -381,7 +339,7 @@ object FormMain: TFormMain
             Size.Width = 20.000000000000000000
             Size.Height = 19.000000000000000000
             Size.PlatformDefault = False
-            TabOrder = 3
+            TabOrder = 4
             Text = 'X'
             ParentShowHint = False
             ShowHint = True
@@ -474,12 +432,13 @@ object FormMain: TFormMain
           TabOrder = 3
           object Label7: TLabel
             Opacity = 0.800000011920929000
-            Position.X = 10.000000000000000000
-            Position.Y = 6.000000000000000000
-            Size.Width = 65.000000000000000000
+            Position.X = 8.000000000000000000
+            Position.Y = 7.000000000000000000
+            Size.Width = 75.000000000000000000
             Size.Height = 17.000000000000000000
             Size.PlatformDefault = False
-            Text = 'Change '#55357#56393
+            TextSettings.HorzAlign = Trailing
+            Text = 'Change to'
             TabOrder = 2
           end
           object Rectangle_CustomValue: TRectangle
@@ -494,11 +453,12 @@ object FormMain: TFormMain
             YRadius = 5.000000000000000000
             object Text_CustomValue: TText
               Align = Client
+              Opacity = 0.800000011920929000
               Size.Width = 45.000000000000000000
               Size.Height = 25.000000000000000000
               Size.PlatformDefault = False
               Text = '255'
-              TextSettings.FontColor = claLightgray
+              TextSettings.FontColor = claYellow
             end
           end
           object Label_CustomChanged: TLabel
@@ -673,6 +633,81 @@ object FormMain: TFormMain
         end
       end
     end
+    object Path_Compass: TPath
+      Data.BoundsMode = ShapeBounds
+      Data.Path = {
+        33000000000000000000C8420000A041010000000000FA420000964201000000
+        000034430000C842010000000000FA420000FA42010000000000C84200003443
+        01000000000096420000FA42010000000000A0410000C8420100000000009642
+        00009642030000000000C8420000A041000000000000C8420000704202000000
+        35D19B4200007042020000000000704235D19B4202000000000070420000C842
+        0200000000007042CA2EF4420200000034D19B4200000C4302000000FFFFC742
+        00000C4302000000CB2EF44200000C430200000000000C43CB2EF44202000000
+        00000C430000C8420200000000000C4336D19B4202000000CC2EF44201007042
+        020000000100C84200007042030000000000C84200007042000000000000C842
+        0000A042020000006517DE420000A042020000000000F0429BE8B14202000000
+        0000F0420000C842020000000000F0426517DE42020000006517DE420000F042
+        020000000000C8420000F042020000009BE8B1420000F042020000000000A042
+        6517DE42020000000000A0420000C842020000000000A0429AE8B14202000000
+        9BE8B1420000A042020000000000C8420000A042030000000000C8420000A042
+        000000000000C8420000B84202000000D729BF420000B842020000000000B842
+        D729BF42020000000000B8420000C842020000000000B84228D6D04202000000
+        D729BF420000D842020000000000C8420000D8420200000029D6D0420000D842
+        020000000000D84229D6D042020000000000D8420000C842020000000000D842
+        D829BF420200000029D6D0420000B842020000000000C8420000B84203000000
+        0000C8420000B842}
+      Fill.Color = claDarkblue
+      Margins.Top = 2.000000000000000000
+      Margins.Bottom = 2.000000000000000000
+      Position.X = 20.000000000000000000
+      Position.Y = 60.000000000000000000
+      Size.Width = 40.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = claWhite
+      WrapMode = Fit
+      object ShadowEffect1: TShadowEffect
+        Distance = 3.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.500000000000000000
+        Opacity = 0.800000011920929000
+        ShadowColor = claBlack
+      end
+    end
+    inline Frame_Histogram1: TFrame_Histogram
+      Position.X = 16.000000000000000000
+      Position.Y = 750.000000000000000000
+      Size.Width = 316.000000000000000000
+      Size.Height = 116.000000000000000000
+      Size.PlatformDefault = False
+      inherited Layout_Histogram: TLayout
+        Margins.Left = 4.000000000000000000
+        Margins.Top = 4.000000000000000000
+        Margins.Right = 4.000000000000000000
+        Margins.Bottom = 4.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 108.000000000000000000
+        inherited Rectangle_Histogram: TRectangle
+          Opacity = 0.699999988079071000
+          Size.Width = 308.000000000000000000
+          Size.Height = 108.000000000000000000
+          inherited PaintBox_Histogram: TPaintBox
+            Size.Width = 308.000000000000000000
+            Size.Height = 108.000000000000000000
+          end
+          inherited Label1: TLabel
+            Size.Width = 308.000000000000000000
+          end
+        end
+      end
+      object ShadowEffect4: TShadowEffect
+        Distance = 3.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.600000023841857900
+        ShadowColor = claBlack
+      end
+    end
     inline Frame_Navigator1: TFrame_Navigator
       Position.X = 640.000000000000000000
       Position.Y = 750.000000000000000000
@@ -681,10 +716,15 @@ object FormMain: TFormMain
       Size.PlatformDefault = False
       inherited Layout_Navigator: TLayout
         inherited Rectangle_Navigator: TRectangle
-          inherited Image_Navigator: TImage
-            Size.Height = 91.000000000000000000
-          end
+          Stroke.Thickness = 1.500000000000000000
         end
+      end
+      object ShadowEffect3: TShadowEffect
+        Distance = 3.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.600000023841857900
+        ShadowColor = claBlack
       end
     end
     object MultiView_Options: TMultiView
@@ -821,7 +861,7 @@ object FormMain: TFormMain
         end
         object TrackBar_CellWeight: TTrackBar
           CanParentFocus = True
-          Max = 255.000000000000000000
+          Max = 254.000000000000000000
           Orientation = Horizontal
           Position.X = 111.000000000000000000
           Position.Y = 333.000000000000000000
@@ -829,7 +869,6 @@ object FormMain: TFormMain
           Size.Height = 24.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 12
-          Value = 255.000000000000000000
           ParentShowHint = False
           ShowHint = True
           OnChange = TrackBar_CellWeightChange
@@ -35617,9 +35656,9 @@ object FormMain: TFormMain
       Text = #10060' Delete Item'
       OnClick = pm_DeleteClick
     end
-    object pm_ApplyToAll: TMenuItem
-      Text = #55357#56550' Apply To All'
-      OnClick = pm_ApplyToAllClick
+    object pm_BackupWeights: TMenuItem
+      Text = #55357#56550' Backup Weights'
+      OnClick = pm_BackupWeightsClick
     end
     object pm_CLear: TMenuItem
       Action = Action_CustomClear
@@ -35651,8 +35690,8 @@ object FormMain: TFormMain
   end
   object ActionList1: TActionList
     OnUpdate = ActionList1Update
-    Left = 416
-    Top = 620
+    Left = 656
+    Top = 548
     object Action_Screenshot: TAction
       Text = 'Action_Screenshot'
       ShortCut = 16467
@@ -35682,7 +35721,7 @@ object FormMain: TFormMain
       OnExecute = Action_OptionsExecute
     end
     object Action_ResetMap: TAction
-      Text = #55357#56960' Reset'
+      Text = #10029' Reset'
       Hint = 'Reset'
       ShortCut = 16466
       OnExecute = Action_ResetMapExecute
@@ -35746,10 +35785,11 @@ object FormMain: TFormMain
       Hint = 'Change the Name'
       OnExecute = Action_CustonRenameExecute
     end
-    object Action_CustomApplyToAll: TAction
+    object Action_CustomBackup: TAction
       Text = #55357#56550
-      Hint = 'Apply to All'
-      OnExecute = Action_CustomApplyToAllExecute
+      Hint = 'Save All Weights'
+      ShortCut = 24663
+      OnExecute = Action_CustomBackupExecute
     end
     object Action_CustomRefreshCat: TAction
       Text = #9881#65039
@@ -35759,6 +35799,11 @@ object FormMain: TFormMain
     object Action_RestoreWeights: TAction
       Text = #9851#65039' Restore'
       OnExecute = Action_RestoreWeightsExecute
+    end
+    object Action_Private: TAction
+      Text = 'Action_Private'
+      ShortCut = 24641
+      OnExecute = Action_PrivateExecute
     end
   end
 end

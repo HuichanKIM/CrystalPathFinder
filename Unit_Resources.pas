@@ -22,7 +22,7 @@ type
     Image_Logo0: TImage;
     Image1: TImage;
     Path1: TPath;
-    Image_Logo1: TImage;
+    Image_Logo2: TImage;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private

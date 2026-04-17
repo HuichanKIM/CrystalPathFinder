@@ -23,8 +23,8 @@ type
     Layout_Navigator: TLayout;
     Rectangle_Navigator: TRectangle;
     Image_Navigator: TImage;
-    Label1: TLabel;
     Rectangle_Navi: TRectangle;
+    Label1: TLabel;
     procedure Rectangle_NaviMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Rectangle_NaviMouseLeave(Sender: TObject);
     procedure Rectangle_NaviMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
@@ -56,49 +56,6 @@ uses
 
 {$R *.fmx}
 
-// Convert local (Rectangle_Navi) coordinates
-// to Image_Navigator coordinate system and store them
-procedure TFrame_Navigator.Rectangle_NaviMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-begin
-  if Button = TMouseButton.mbLeft then
-  begin
-    FNaviDragging := True;
-    FNaviPoint := TPointF.Create(Rectangle_Navi.Position.X + X, Rectangle_Navi.Position.Y + Y);
-  end;
-end;
-
-procedure TFrame_Navigator.Rectangle_NaviMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
-begin
-  if not FNaviDragging then Exit;
-  if not Assigned(FNaviBitmap) or FNaviBitmap.IsEmpty then Exit;
-
-  var _CurPos := TPointF.Create(Rectangle_Navi.Position.X + X, Rectangle_Navi.Position.Y + Y);
-  var _Delta := _CurPos - FNaviPoint;
-  FNaviPoint := _CurPos;
-
-  var _ThumbW := Image_Navigator.Bitmap.Width;
-  var _ThumbH := Image_Navigator.Bitmap.Height;
-  var _BW     := FNaviBitmap.Width;
-  var _BH     := FNaviBitmap.Height;
-  if (_ThumbW <= 0) or (_ThumbH <= 0) then Exit;
-
-  // Thumbnail pixel movement ¡æ Bitmap pixel movement
-  var _DX := _Delta.X * (_BW / _ThumbW);
-  var _DY := _Delta.Y * (_BH / _ThumbH);
-
-  FormMain.MoveViewOffset(-_DX, -_DY);
-end;
-
-procedure TFrame_Navigator.Rectangle_NaviMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
-begin
-  FNaviDragging := False;
-end;
-
-procedure TFrame_Navigator.Rectangle_NaviMouseLeave(Sender: TObject);
-begin
-  FNaviDragging := False;
-end;
-
 procedure TFrame_Navigator.SetNaviBitmap(const Value: TBitmap);
 begin
   FNaviBitmap := Value;
@@ -116,30 +73,12 @@ begin
   var _ThumbW := Max(1, Trunc(_BW * _Scale));
   var _ThumbH := Max(1, Trunc(_BH * _Scale));
 
-  var _Thumb := FNaviBitmap.CreateThumbnail(_ThumbW, _ThumbH);
+  var _Thumb  := FNaviBitmap.CreateThumbnail(_ThumbW, _ThumbH);
   try
     Image_Navigator.Bitmap.Assign(_Thumb);
   finally
     _Thumb.Free;
   end;
-end;
-
-procedure TFrame_Navigator.SetNaviFlag(const Value: Integer);
-begin
-  FNaviFlag := Value;
-  // To DO ...
-end;
-
-procedure TFrame_Navigator.SetNaviViewRect(const Value: TRectF);
-begin
-  FNaviViewRect := Value;
-  UpdateNaviRect;
-end;
-
-procedure TFrame_Navigator.SetNaviZoom(const Value: Single);
-begin
-  FNaviZoom := Value;
-  UpdateNaviRect;
 end;
 
 { Key: Draw a Viewport Square over Navigator  -------------------------------- }
@@ -183,10 +122,74 @@ begin
   _OffX := Max(0, _OffX);
   _OffY := Max(0, _OffY);
 
-  Rectangle_Navi.Position.X := _OffX + _VR.Left;
-  Rectangle_Navi.Position.Y := _OffY + _VR.Top;
-  Rectangle_Navi.Width      := _VR.Width;
-  Rectangle_Navi.Height     := _VR.Height;
+  with Rectangle_Navi do
+  begin
+    Position.X := _OffX + _VR.Left;
+    Position.Y := _OffY + _VR.Top;
+    Width      := _VR.Width;
+    Height     := _VR.Height;
+  end;
+end;
+
+// Convert local (Rectangle_Navi) coordinates
+// to Image_Navigator coordinate system and store them
+procedure TFrame_Navigator.Rectangle_NaviMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+begin
+  if Button = TMouseButton.mbLeft then
+  begin
+    FNaviDragging := True;
+    FNaviPoint := TPointF.Create(Rectangle_Navi.Position.X + X, Rectangle_Navi.Position.Y + Y);
+  end;
+end;
+
+procedure TFrame_Navigator.Rectangle_NaviMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
+begin
+  if not FNaviDragging then Exit;
+  if not Assigned(FNaviBitmap) or FNaviBitmap.IsEmpty then Exit;
+
+  var _CurPos := TPointF.Create(Rectangle_Navi.Position.X + X, Rectangle_Navi.Position.Y + Y);
+  var _Delta  := _CurPos - FNaviPoint;
+  FNaviPoint  := _CurPos;
+
+  var _ThumbW := Image_Navigator.Bitmap.Width;
+  var _ThumbH := Image_Navigator.Bitmap.Height;
+  var _BW     := FNaviBitmap.Width;
+  var _BH     := FNaviBitmap.Height;
+  if (_ThumbW <= 0) or (_ThumbH <= 0) then Exit;
+
+  // Thumbnail pixel movement ¡æ Bitmap pixel movement
+  var _DX := _Delta.X * (_BW / _ThumbW);
+  var _DY := _Delta.Y * (_BH / _ThumbH);
+
+  FormMain.MoveViewOffset(-_DX, -_DY);
+end;
+
+procedure TFrame_Navigator.Rectangle_NaviMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+begin
+  FNaviDragging := False;
+end;
+
+procedure TFrame_Navigator.Rectangle_NaviMouseLeave(Sender: TObject);
+begin
+  FNaviDragging := False;
+end;
+
+procedure TFrame_Navigator.SetNaviFlag(const Value: Integer);
+begin
+  FNaviFlag := Value;
+  // To DO ...
+end;
+
+procedure TFrame_Navigator.SetNaviViewRect(const Value: TRectF);
+begin
+  FNaviViewRect := Value;
+  UpdateNaviRect;
+end;
+
+procedure TFrame_Navigator.SetNaviZoom(const Value: Single);
+begin
+  FNaviZoom := Value;
+  UpdateNaviRect;
 end;
 
 end.

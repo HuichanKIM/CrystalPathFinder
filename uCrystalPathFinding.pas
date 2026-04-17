@@ -449,10 +449,10 @@ begin
 
   ArgumentTest(AColumns, ARows, AKind);
 
-  FColumns :=   AColumns;
-  FRows :=      ARows;
-  FKind :=      AKind;
-  FHexOffset := AHexOffset;
+  FColumns     := AColumns;
+  FRows        := ARows;
+  FKind        := AKind;
+  FHexOffset   := AHexOffset;
 
   FDataLock    := TCriticalSection.Create;
   FContextLock := TCriticalSection.Create;
@@ -907,8 +907,8 @@ begin
   {  The finally block guarantees it is always returned.               }
   {  * context exclusively owned by this call                          }
   { ------------------------------------------------------------------ }
-  var _Ctx: PThreadContext := AcquireContext;  
-  { ------------------------------------------------------------------ }  
+  var _Ctx: PThreadContext := AcquireContext;
+  { ------------------------------------------------------------------ }
   try
     { Prepare buffers: SetLength only when needed;
       VisitedGen reset via Generation++ }
@@ -926,8 +926,8 @@ begin
       _HasExcludes := Length(_ExcludeTiles) > 0;
     end;
 
-    var _MaxNodes    := _Ctx^.NodeCap;
-    var _PoolCount   := 0;
+    var _MaxNodes  := _Ctx^.NodeCap;
+    var _PoolCount := 0;
 
     { ---------------------------------------------------------------- }
     {  Heap was reset to FCount=0 by PrepareContext.                   }

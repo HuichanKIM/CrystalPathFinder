@@ -15,7 +15,8 @@ uses
   uWeightStackManager in 'uWeightStackManager.pas',
   Unit_Main in 'Unit_Main.pas' {FormMain},
   Unit_Resources in 'Unit_Resources.pas' {Form_Resources},
-  Unit_FrameNavi in 'Unit_FrameNavi.pas' {Frame_Navigator: TFrame};
+  Unit_FrameNavi in 'Unit_FrameNavi.pas' {Frame_Navigator: TFrame},
+  Unit_Histogram in 'Unit_Histogram.pas' {Frame_Histogram: TFrame};
 
 {$R *.res}
 

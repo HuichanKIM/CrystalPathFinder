@@ -10,13 +10,13 @@ object Frame_Navigator: TFrame_Navigator
     TabOrder = 0
     object Rectangle_Navigator: TRectangle
       Align = Client
-      Fill.Color = xFF16253D
+      Fill.Color = xAA16253D
       HitTest = False
-      Opacity = 0.600000023841857900
+      Opacity = 0.699999988079071000
       Size.Width = 240.000000000000000000
       Size.Height = 112.000000000000000000
       Size.PlatformDefault = False
-      Stroke.Color = claLightgray
+      Stroke.Color = claWhite
       XRadius = 10.000000000000000000
       YRadius = 10.000000000000000000
       object Image_Navigator: TImage
@@ -36,10 +36,10 @@ object Frame_Navigator: TFrame_Navigator
         object Rectangle_Navi: TRectangle
           Cursor = crHandPoint
           Fill.Color = claNull
-          Position.X = 16.000000000000000000
-          Position.Y = 25.000000000000000000
-          Size.Width = 89.000000000000000000
-          Size.Height = 33.000000000000000000
+          Position.X = 10.000000000000000000
+          Position.Y = 10.000000000000000000
+          Size.Width = 216.000000000000000000
+          Size.Height = 88.000000000000000000
           Size.PlatformDefault = False
           Stroke.Color = claYellow
           Stroke.Thickness = 3.000000000000000000
@@ -57,7 +57,7 @@ object Frame_Navigator: TFrame_Navigator
         Size.Height = 17.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 7.500000000000000000
-        TextSettings.FontColor = claBlue
+        TextSettings.FontColor = claYellow
         TextSettings.HorzAlign = Center
         Text = 'NAVIGATIOR'
         TabOrder = 1

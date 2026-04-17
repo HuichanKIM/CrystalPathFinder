@@ -45,7 +45,8 @@ uses
   //
   uWeightStackManager,
   uCrystalPathFinding,
-  Unit_FrameNavi;
+  Unit_FrameNavi,
+  Unit_Histogram;
 
 
 type
@@ -154,7 +155,7 @@ type
     ComboBox_CustomWeight: TComboBox;
     Label3: TLabel;
     Button_Close: TButton;
-    Button_AllWeights: TButton;
+    Button_SaveAllWeights: TButton;
     Button_ApplyWeights: TButton;
     Label4: TLabel;
     Layout_Combo: TLayout;
@@ -180,13 +181,13 @@ type
     pm_ChangeName: TMenuItem;
     pm_ApplyToMap: TMenuItem;
     pm_Delete: TMenuItem;
-    pm_ApplyToAll: TMenuItem;
+    pm_BackupWeights: TMenuItem;
     pm_SaveToFile: TMenuItem;
     pm_LoadFromFile: TMenuItem;
     Action_CustomApplayToMap: TAction;
     Action_CustomDelete: TAction;
     Action_CustonRename: TAction;
-    Action_CustomApplyToAll: TAction;
+    Action_CustomBackup: TAction;
     Action_CustomRefreshCat: TAction;
     SaveDialog_Custom: TSaveDialog;
     OpenDialog_Custom: TOpenDialog;
@@ -212,6 +213,10 @@ type
     Action_CustomClear: TAction;
     //
     Frame_Navigator1: TFrame_Navigator;
+    ShadowEffect3: TShadowEffect;
+    Action_Private: TAction;
+    Frame_Histogram1: TFrame_Histogram;
+    ShadowEffect4: TShadowEffect;
 
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -270,24 +275,25 @@ type
     procedure pm_ApplyToMapClick(Sender: TObject);
     procedure pm_ChangeNameClick(Sender: TObject);
     procedure pm_DeleteClick(Sender: TObject);
-    procedure pm_ApplyToAllClick(Sender: TObject);
+    procedure pm_BackupWeightsClick(Sender: TObject);
     procedure pm_SaveToFileClick(Sender: TObject);
     procedure pm_LoadFromFileClick(Sender: TObject);
+    procedure pm_RefreshClick(Sender: TObject);
+    procedure pm_CLearClick(Sender: TObject);
+    procedure Action_RestoreWeightsExecute(Sender: TObject);
     procedure Action_CustomApplayToMapExecute(Sender: TObject);
     procedure Action_CustomDeleteExecute(Sender: TObject);
     procedure Action_CustonRenameExecute(Sender: TObject);
-    procedure Action_CustomApplyToAllExecute(Sender: TObject);
+    procedure Action_CustomBackupExecute(Sender: TObject);
     procedure Action_CustomRefreshCatExecute(Sender: TObject);
-    procedure pm_RefreshClick(Sender: TObject);
-    procedure Action_RestoreWeightsExecute(Sender: TObject);
+    procedure Action_CustomClearExecute(Sender: TObject);
+    procedure Action_PrivateExecute(Sender: TObject);
     procedure TrackBar_CustomOffsetChange(Sender: TObject);
     procedure Layout_CustomWeightMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Layout_CustomWeightMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Single);
     procedure Layout_CustomWeightMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Edit_InputNameKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
     procedure Layout_CustomWeightMouseLeave(Sender: TObject);
-    procedure pm_CLearClick(Sender: TObject);
-    procedure Action_CustomClearExecute(Sender: TObject);
   private
     FPathFinder: TTileMap;
     FMapWeights: TArray<Byte>;
@@ -333,7 +339,6 @@ type
     FCustomColorFlag: Boolean;
 
     FFirstTileFlag: Boolean;
-    FunnyFlag: Integer;
     { Stack Manager - Custom Weights }
     FWeightStackManager: TWeightStackManager;
     FStackFileName: string;
@@ -345,7 +350,7 @@ type
     FCustomMousePos: TPointF;
     //
     FSnapshotPath: string;
-
+    FSleepPrevented: Boolean;
     procedure LoadIniOptions;
     procedure SaveIniOptions;
 
@@ -384,8 +389,7 @@ type
     procedure DrawMarker(ACanvas: TCanvas; const AGridPos: TPoint; const AColor1, AColor2: TAlphaColor; const ASymbol: string);  overload;
     procedure DrawMarker(ACanvas: TCanvas; const APosFlag: Integer; const AGridPos: TPoint); overload;
     procedure DrawSmoothPath(ACanvas: TCanvas; const ASmoothFlag: Boolean = False);
-    procedure DrawHeatmap(Canvas: TCanvas);
-    procedure DrawWeightHistogram(ACanvas: TCanvas);
+    procedure DrawHeatmap(ACanvas: TCanvas);
     function  GetHexLine(AHex, BHex: THexCube): TList<THexCube>;
     function  CubeRound(fX, fY, fZ: Double): THexCube;
     function  IsInGrid(AGX, AGY: Integer): Boolean;
@@ -411,6 +415,7 @@ type
     procedure SetMapCategory(const Value: TMapCategory);
     { Navigator }
     procedure SyncNavigator;
+    procedure UpdatePosNavigator(const ASyncFlag: Integer = 0);
   public
     { Navigator }
     procedure MoveViewOffset(const ADX, ADY: Single);
@@ -530,42 +535,44 @@ begin
   IsAvailable := False;
 end;
 
-
 { TFormMain ------------------------------------------------------------------ }
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
-  Self.Caption :=       C_CaptionTitle;
+  Self.Caption          := C_CaptionTitle;
+  FSleepPrevented       := PreventSleep;
 
-  FIsHighlightMode :=   False;
-  FLockMapFlag :=       True;                                                   // Lock Update PaintBox_Map.RePaint ...
-  FWeightMultiplier :=  0.5;
-  FCurrentWightFlag :=  0;
-  FDefaultBackColor :=  $FF16253D;
-  FResizeClearFlag :=   False;
+  FIsHighlightMode      := False;
+  FLockMapFlag          := True;                                                // Lock Update PaintBox_Map.RePaint ...
+  FWeightMultiplier     := 0.5;
+  FCurrentWightFlag     := 0;
+  FDefaultBackColor     := $FF16253D;
+  FResizeClearFlag      := False;
 
-  FStartPos :=          TPoint.Create(10, 10);
-  FFinishPos :=         TPoint.Create(180, 180);
-  FCellSize :=          C_CellSizeDefault;
-  FViewOffset :=        TPointF.Create(100, 100);
+  FStartPos             := TPoint.Create(10, 10);
+  FFinishPos            := TPoint.Create(180, 180);
+  FCellSize             := C_CellSizeDefault;
+  FViewOffset           := TPointF.Create(100, 100);
 
-  FDragMode :=          TDragMode.None;
-  FMapBitmap :=         TBitmap.Create;
-  FWorkingBitmap :=     TBitmap.Create;
+  FDragMode             := TDragMode.None;
+  FMapBitmap            := TBitmap.Create;
+  FWorkingBitmap        := TBitmap.Create;
 
-  FFirstTileFlag :=                 True;
-  FunnyFlag :=                      0;
-  CheckBox_Weights.IsChecked :=     False;
-  CheckBox_AddTerrain.IsChecked :=  True;
-  CheckBox_ShowGrid.IsChecked :=    True;
-  Text_CustomWeight2.Visible :=     False;
-  Path_Compass.Visible :=           False;
-  Button_LoadMap.Default :=         True;
+  FFirstTileFlag                := True;
+  CheckBox_Weights.IsChecked    := False;
+  CheckBox_AddTerrain.IsChecked := True;
+  CheckBox_ShowGrid.IsChecked   := True;
+  Text_CustomWeight2.Visible    := False;
+  Path_Compass.Visible          := False;
+  Button_LoadMap.Default        := True;
 
-  Layout_WeightGroup.Visible :=     False;
-  Layout_CustomWeight.Visible :=    False;
-  Layout_InputQuery.Visible :=      False;
-  Frame_Navigator1.Visible  :=      False;
+  Layout_WeightGroup.Visible    := False;
+  Layout_CustomWeight.Visible   := False;
+  Layout_InputQuery.Visible     := False;
+  Frame_Navigator1.Visible      := False;
+  Frame_Histogram1.Visible      := False;
+  StatusBar_Map.Visible         := False;
+  Label_GPSInfos.Visible        := False;
 
   FPathColor := TAlphaColors.Yellow;
 
@@ -596,14 +603,14 @@ begin
   FCustomOffSet := 10;
   FQuery_Mode := 0;
   TrackBar_WeightMultiplier.Value := 100;
-  Label_WeightScale.Text := Format('📍 Default Weight Scale %.2f', [TrackBar_WeightMultiplier.Value / 100]);
+  Label_WeightScale.Text  := Format('📍 Default Weight Scale %.2f', [TrackBar_WeightMultiplier.Value / 100]);
   Label_PathTileSize.Text := '🏁 MAP Tile Size (Default) : '+Trunc(C_CellSizeDefault).ToString;
   FSetCellSize := C_CellSizeDefault;
   TrackBar_TileSize.Value := C_CellSizeDefault;
-  FZoomRatio := 1.0;
+  FZoomRatio       := 1.0;
   FGridStrokeThick := 0.8;
-  FFilterIndex := 0;
-  FWallDefineVal := 3;
+  FFilterIndex     := 0;
+  FWallDefineVal   := 3;
 
   FMapCategory := TMapCategory.mcDefault;
   FSnapshotPath := TPath.Combine(ExtractFilePath(ParamStr(0)), 'snapshot', True);
@@ -636,6 +643,7 @@ end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  AllowSleep;
   SaveIniOptions();
   FWeightStackManager.Free;
   FCurrentPath.Release;
@@ -647,15 +655,14 @@ end;
 
 procedure TFormMain.LoadIniOptions();
 begin
-  var _IniConfig: TMemIniFile := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
-  var _ColorStr1: string := AlphaColorToString(TAlphaColors.Yellow);            // = 'Yellow'
-  var _ColorStr2: string := AlphaColorToString(TAlphaColors.Lightgray);         // = 'LightGray'
+  var _IniConfig := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
+  var _ColorStr1 := AlphaColorToString(TAlphaColors.Yellow);            // = 'Yellow'
+  var _ColorStr2 := AlphaColorToString(TAlphaColors.Lightgray);         // = 'LightGray'
 
   if Assigned(_IniConfig) then
   with _IniConfig do
   try
     FFirstTileFlag                  := ReadBool   ('Management',   'FirstTime',       True);
-    FunnyFlag                       := ReadInteger('Management',   'Funnyflag',       0);
     CheckBox_Weights.IsChecked      := ReadBool   ('UIOptions',    'Analysis',        False);
     CheckBox_AddTerrain.IsChecked   := ReadBool   ('UIOptions',    'Calcurate',       True);
     CheckBox_HistoEqual.IsChecked   := ReadBool   ('UIOptions',    'HistoEqual',      False);
@@ -672,7 +679,7 @@ begin
     TrackBar_WeightMultiplier.Value := ReadFloat  ('MapParams',    'SetWeight',       50.0);
     TrackBar_CustomOffset.Value     := ReadInteger('MapParams',    'CustomOffset',    10); // Update -> FCustomOffSet
     TrackBar_TileSize.Value         := ReadFloat  ('MapParams',    'Tilesize',        C_CellSizeDefault);
-    TrackBar_CellWeight.Value       := ReadFloat  ('MapParams',    'CellWeight',      255);
+    TrackBar_CellWeight.Value       := ReadFloat  ('MapParams',    'CellWeight',      0);
     TrackBar_HistoFactor.Value      := ReadFloat  ('MapParams',    'CellWeight',      0.5);
     FWallDefineVal                  := ReadInteger('MapParams',    'WallDefine',      3);
     TrackBar_WallFactor.Value       := FWallDefineVal;
@@ -684,15 +691,13 @@ end;
 
 procedure TFormMain.SaveIniOptions();
 begin
-  var _IniConfig: TMemIniFile := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
-  var _ColorStr1: string := AlphaColorToString(FPathColor);
-  var _ColorStr2: string := AlphaColorToString(ColorComboBox_Grid.Color);
-  FunnyFlag := (FunnyFlag + 1) mod 2;
+  var _IniConfig := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
+  var _ColorStr1 := AlphaColorToString(FPathColor);
+  var _ColorStr2 := AlphaColorToString(ColorComboBox_Grid.Color);
   if Assigned(_IniConfig) then
   with _IniConfig do
   try
     WriteBool   ('Management',   'FirstTime',       FFirstTileFlag);
-    WriteInteger('Management',   'Funnyflag',       FunnyFlag);
     WriteBool   ('UIOptions',    'Analysis',        CheckBox_Weights.IsChecked);
     WriteBool   ('UIOptions',    'Calcurate',       CheckBox_AddTerrain.IsChecked);
     WriteBool   ('UIOptions',    'HistoEqual',      CheckBox_HistoEqual.IsChecked);
@@ -720,17 +725,10 @@ procedure TFormMain.FormResize(Sender: TObject);
 begin
   if FLockMapFlag then Exit;
 
-  if FPathFinder <> nil then CenterMap;
-  if Frame_Navigator1.Visible then
-  begin
-    var _Point := PaintBox_Map.LocalToAbsolute(PointF(PaintBox_Map.Width, PaintBox_Map.Height));
-    Frame_Navigator1.Position.X := _Point.X -  Frame_Navigator1.Width - 20;
-    Frame_Navigator1.Position.Y := _Point.Y -  Frame_Navigator1.Height -14;
-
-    SyncNavigator;
-  end;
+  UpdatePosNavigator;
+  if FPathFinder <> nil then CenterMap;                                         // -> ConstrainViewOffset -> SyncNavigator
   // ------------------------------------------------------------------------ //
-  PaintBox_Map.Repaint;
+  PaintBox_Map.Repaint;                                                         // FPathFinder = nil then Draw Logo
   // ------------------------------------------------------------------------ //
 end;
 
@@ -739,9 +737,6 @@ begin
   if FLockMapFlag then
   begin
     Global_TrimAppMemorySizeEx(0);
-    var _Point := PaintBox_Map.LocalToAbsolute(PointF(PaintBox_Map.Width, PaintBox_Map.Height));
-    Frame_Navigator1.Position.X := _Point.X -  Frame_Navigator1.Width - 20;
-    Frame_Navigator1.Position.Y := _Point.Y -  Frame_Navigator1.Height -14;
   end;
 end;
 
@@ -760,10 +755,9 @@ begin
   with Rectangle_Options do
   begin
     Stroke.Kind := TBrushKind.Solid;
-    XRadius := 10;
-    YRadius := 10;
-
-    Enabled := True;
+    XRadius     := 10;
+    YRadius     := 10;
+    Enabled     := True;
   end;
 end;
 
@@ -778,9 +772,9 @@ end;
 procedure TFormMain.MultiView_OptionsShown(Sender: TObject);
 begin
   HideCustomWeight(0);
-  CheckBox_CustomColor.OnChange :=  nil;
+  CheckBox_CustomColor.OnChange  := nil;
   CheckBox_CustomColor.IsChecked := CustomColorFlag;
-  CheckBox_CustomColor.OnChange :=  CheckBox_CustomColorChange;
+  CheckBox_CustomColor.OnChange  := CheckBox_CustomColorChange;
 end;
 
 procedure TFormMain.MultiView_WeightsShown(Sender: TObject);
@@ -824,27 +818,26 @@ begin
     if FBackup.IsAvailable then
     begin
       FBackup.Restore(FMapWeights, FPathFinder.Data);
-
       ShowToastAlert('Restored to Backup');
       UpdatePath(True);
       Key := 0; Exit;
     end;
   end;
 
-  if not Layout_CustomWeight.Visible then                                       // for prepare Edit mode of CustomWeights ...
-  begin
-    if KeyChar = 'a' then Action_AnalysisExecute(Self) else
-    if KeyChar = 'b' then Action_CenterMapExecute(Self) else
-    if KeyChar = 'f' then Action_FIlterBuildsExecute(Self) else
-    if KeyChar = 'g' then Action_ShowGridsExecute(Self) else
-    if KeyChar = 'h' then Action_HelpExecute(Self) else
-    if KeyChar = 'm' then Action_LoadMapExecute(Self) else
-    if KeyChar = 'o' then Action_OptionsExecute(Self) else
-    if KeyChar = 'q' then Action_SmoothLineExecute(Self) else
-    if KeyChar = 'r' then Action_ResetMapExecute(Self) else
-    if KeyChar = 's' then Action_ScreenshotExecute(Self) else
-    if KeyChar = 'w' then Action_CustomWeightExecute(Self) else
-    if KeyChar = ' ' then Action_CustomColorExecute(Self);
+  if not Layout_InputQuery.Visible then                                         // for prepare Edit mode of CustomWeights ...
+  case KeyChar of
+    ' ' : Action_CustomColorExecute(Self);
+    'a' : Action_AnalysisExecute(Self);
+    'b' : Action_CenterMapExecute(Self);
+    'f' : Action_FIlterBuildsExecute(Self);
+    'g' : Action_ShowGridsExecute(Self);
+    'h' : Action_HelpExecute(Self);
+    'm' : Action_LoadMapExecute(Self);
+    'o' : Action_OptionsExecute(Self);
+    'q' : Action_SmoothLineExecute(Self);
+    'r' : Action_ResetMapExecute(Self);
+    's' : Action_ScreenshotExecute(Self);
+    'w' : Action_CustomWeightExecute(Self);
   end;
 
   var _effectflag: Boolean := False;
@@ -860,7 +853,7 @@ begin
         end
       else
         begin
-          var _dummy: Boolean := True;
+          var _dummy := True;
           var _wheeldelta: Integer := 1;
           case Key of
             vkUp:    begin _wheeldelta := 1;  PaintBox_MapMouseWheel(Self, [], _wheeldelta, _dummy); _effectflag := True; end;
@@ -885,6 +878,8 @@ begin
   if _effectflag then
   begin
     FLastMousePos := FViewOffset;
+    // ---------------------------------------------------------------------- //
+    SyncNavigator;
     // ---------------------------------------------------------------------- //
     PaintBox_Map.Repaint;
     // ---------------------------------------------------------------------- //
@@ -970,7 +965,7 @@ begin
 
   if not FLockMapFlag then
   begin
-    var ScaleX := PaintBox_Map.Width / _MapWidth;
+    var ScaleX := PaintBox_Map.Width /  _MapWidth;
     var ScaleY := PaintBox_Map.Height / _MapHeight;
     var _FillScale := Max(ScaleX, ScaleY);
     FCellSize := FCellSize * _FillScale;
@@ -1006,11 +1001,11 @@ procedure TFormMain.ConstrainViewOffset(const ANaviFlag: Boolean);
 begin
   if (FPathFinder = nil) then Exit;
 
-  var _MapWidth :=   FPathFinder.Columns * FCellSize;
+  var _MapWidth  :=  FPathFinder.Columns * FCellSize;
   var _MapHeight :=  FPathFinder.Rows *    FCellSize;
   if FPathFinder.Kind = TTileMapKind.mkHexagonal then
   begin
-    _MapWidth :=  (FPathFinder.Columns  - 1) * FCellSize * C_ColStep + FCellSize;
+    _MapWidth  := (FPathFinder.Columns  - 1) * FCellSize * C_ColStep + FCellSize;
     _MapHeight := (FPathFinder.Rows + 0.5) *   FCellSize * C_SQRT3_2_MAX;
   end;
 
@@ -1068,11 +1063,11 @@ begin
     begin
       { Square grid — original calculation }
       var _GridStart := ScreenToGridF(0, 0);
-      var _GridEnd :=   ScreenToGridF(PaintBox_Map.Width, PaintBox_Map.Height);
-      _FirstVisCol :=   EnsureRange(_GridStart.X, 0, FPathFinder.Columns  - 1);
-      _FirstVisRow :=   EnsureRange(_GridStart.Y, 0, FPathFinder.Rows - 1);
-      _LastVisCol  :=   EnsureRange(_GridEnd.X, 0,   FPathFinder.Columns  - 1);
-      _LastVisRow  :=   EnsureRange(_GridEnd.Y, 0,   FPathFinder.Rows - 1);
+      var _GridEnd   := ScreenToGridF(PaintBox_Map.Width, PaintBox_Map.Height);
+      _FirstVisCol   := EnsureRange(_GridStart.X, 0, FPathFinder.Columns  - 1);
+      _FirstVisRow   := EnsureRange(_GridStart.Y, 0, FPathFinder.Rows - 1);
+      _LastVisCol    := EnsureRange(_GridEnd.X, 0,   FPathFinder.Columns  - 1);
+      _LastVisRow    := EnsureRange(_GridEnd.Y, 0,   FPathFinder.Rows - 1);
     end;
 
   var _MidRow := (_FirstVisRow + _LastVisRow) div 2;
@@ -1139,7 +1134,7 @@ begin
   FSetCellSize := _CellSize;
 
   { Calculate grid dimensions based on current PaintBox size }
-  var _TileWidth :=  Max(5, Trunc(PaintBox_Map.Width /  FSetCellSize));
+  var _TileWidth  := Max(5, Trunc(PaintBox_Map.Width /  FSetCellSize));
   var _TileHeight := Max(5, Trunc(PaintBox_Map.Height / FSetCellSize));
 
   if not FLockMapFlag and Assigned(FMapBitmap) then
@@ -1176,7 +1171,6 @@ begin
   Rectangle_CustomWeight.Enabled := not FLockMapFlag;
 
   if FLockMapFlag then Exit;
-
   { Set default start and finish positions -------------------------------- }
   FStartPos  := TPoint.Create(Trunc(_TileWidth * 0.1), Trunc(_TileHeight * 0.5));
   FFinishPos := TPoint.Create(Trunc(_TileWidth * 0.9), Trunc(_TileHeight * 0.5));
@@ -1186,7 +1180,7 @@ begin
   FWorkingBitmap.Assign(FMapBitmap);
   { Analyze terrain and update path - UpdatePath ----------------------------- }
   AnalyzeHeightMap(FFilterIndex);
-  CenterMap;
+  CenterMap;                                                                    // -> ConstrainViewOffset -> SyncNavigator
   AdjustMarkersToViewport;
   UpdatePath(True);
 end;
@@ -1420,8 +1414,8 @@ begin
       begin
         RGBToHSV(_Scan^[_x].R, _Scan^[_x].G, _Scan^[_x].B, _H, _S, _V);
 
-        _Vi    := EnsureRange(Trunc(_V * 255), 0, 255);
-        _Veq  := _LUT[_Vi] / 255.0;
+        _Vi  := EnsureRange(Trunc(_V * 255), 0, 255);
+        _Veq := _LUT[_Vi] / 255.0;
 
         // ★ Alpha Blending Key
         // Alpha=1.0 → V_eq 100% (completely equalized)
@@ -1538,11 +1532,10 @@ end;
 function TFormMain.BuildWallThresh(const AFlag: Integer): Single;
 var
   _Target: TBitmap;
-  _IsTemp: Boolean;
 begin
   Result := 0;
 
-  _IsTemp := False;
+  var _IsTemp := False;
   if  CheckBox_HistoEqual.IsChecked then
     begin
       _Target := TBitmap.Create;
@@ -1702,8 +1695,8 @@ begin
     const _TolS = 0.20;
     const _TolV = 0.25;
 
-    var _StepX: Double := Double(FWorkingBitmap.Width) /  FPathFinder.Columns;
-    var _StepY: Double := Double(FWorkingBitmap.Height) / FPathFinder.Rows;
+    var _StepX := Double(FWorkingBitmap.Width) /  FPathFinder.Columns;
+    var _StepY := Double(FWorkingBitmap.Height) / FPathFinder.Rows;
     var _RefPX := Trunc(AGX * _StepX);
     var _RefPY := Trunc(AGY * _StepY);
     var _ColorRec := PAlphaColorRecArray(_Data.GetScanline(_RefPY))^[_RefPX];
@@ -1882,30 +1875,29 @@ begin
     _Stopwatch: TStopwatch;
   begin
     _Stopwatch := TStopwatch.StartNew;
-    _NewPath := FPathFinder.FindPath(_StartPos, _FinishPos, @FMapWeights[0]);
+    _NewPath   := FPathFinder.FindPath(_StartPos, _FinishPos, @FMapWeights[0]);
     _Stopwatch.Stop;
 
-    TThread.Queue(nil,
-      procedure
-      begin
-        // ------------------------------------------------------------------ //
-        FCurrentPath.Release;
-        FCurrentPath     := _NewPath;
-        // ------------------------------------------------------------------ //
-        FPerformanceTick := _Stopwatch.ElapsedMilliseconds;
-        FPathPending     := False;
+    TThread.Queue(nil, procedure
+    begin
+      // ------------------------------------------------------------------ //
+      FCurrentPath.Release;
+      FCurrentPath := _NewPath;
+      // ------------------------------------------------------------------ //
+      FPerformanceTick := _Stopwatch.ElapsedMilliseconds;
+      FPathPending     := False;
 
-        if FPathDirty then
-          begin
-            UpdatePath(AUpdateStatus);
-          end
-        else
-          begin
-            PaintBox_Map.Repaint;
-            if AUpdateStatus then
-              UpdateStatusLabel();
-          end;
-      end);
+      if FPathDirty then
+        begin
+          UpdatePath(AUpdateStatus);
+        end
+      else
+        begin
+          PaintBox_Map.Repaint;
+          if AUpdateStatus then
+            UpdateStatusLabel();
+        end;
+    end);
   end);
  end;
 
@@ -1939,10 +1931,10 @@ begin
   var _Data: TBitmapData;
   if FWorkingBitmap.Map(TMapAccess.Read, _Data) then
   try
-    var _StepX :=     FWorkingBitmap.Width /  FPathFInder.Columns;
-    var _StepY :=     FWorkingBitmap.Height / FPathFInder.Rows;
-    var _mapCols :=   FPathFInder.Columns;
-    var _mapRows :=   FPathFInder.Rows;
+    var _StepX   := FWorkingBitmap.Width /  FPathFInder.Columns;
+    var _StepY   := FWorkingBitmap.Height / FPathFInder.Rows;
+    var _mapCols := FPathFInder.Columns;
+    var _mapRows := FPathFInder.Rows;
 
     var _mapPtr: PByte := FPathFinder.Data;
     var _wgtPtr: PByte := @FMapWeights[0];
@@ -2077,9 +2069,9 @@ begin
       Fill.Color := AFillColor;
       FillPolygon(Corners, 0.5);
     end;
-    Stroke.Dash :=      TStrokeDash.Dot;
-    Stroke.Kind :=      TBrushKind.Solid;
-    Stroke.Color :=     AStrokeColor;
+    Stroke.Dash      := TStrokeDash.Dot;
+    Stroke.Kind      := TBrushKind.Solid;
+    Stroke.Color     := AStrokeColor;
     Stroke.Thickness := AStrokeThick;
     DrawPolygon(Corners, 0.5);
   end;
@@ -2259,12 +2251,12 @@ begin
   end;
 
   { --- Hexagonal tiles --- }
-  var _ViewRect :=  RectF(0, 0, PaintBox_Map.Width, PaintBox_Map.Height);
-  var _HexH :=      FCellSize * C_SQRT3_2_MAX;
-  var _ColStep :=   FCellSize * C_ColStep;
-  var _Idx :=       0;
+  var _ViewRect  := RectF(0, 0, PaintBox_Map.Width, PaintBox_Map.Height);
+  var _HexH      := FCellSize * C_SQRT3_2_MAX;
+  var _ColStep   := FCellSize * C_ColStep;
+  var _Idx       := 0;
   var _Val: Byte := 0;
-  var _Centre :=    TPointF.Zero;
+  var _Centre    := TPointF.Zero;
 
   { 1. Use Floor/Ceil to get a wider range when calculating the index (plus margin +2) }
   var _FirstCol := Max(0, Floor(-FViewOffset.X / _ColStep) - 1);
@@ -2297,8 +2289,8 @@ begin
 
   with ACanvas do
   begin
-    Stroke.Dash :=      TStrokeDash.Dot;
-    Stroke.Color :=     MakeAlphaColor(ColorComboBox_Grid.Color, 160);
+    Stroke.Dash      := TStrokeDash.Dot;
+    Stroke.Color     := MakeAlphaColor(ColorComboBox_Grid.Color, 160);
     Stroke.Thickness := FGridStrokeThick;
   end;
 
@@ -2376,25 +2368,19 @@ begin
   if FWorkingBitmap.IsEmpty then
     begin
       if Assigned(Form_Resources) then
-        case FunnyFlag of
-          0: FWorkingBitmap.Assign(Form_Resources.Image_Logo0.Bitmap);
-          1: FWorkingBitmap.Assign(Form_Resources.Image_Logo1.Bitmap);
-          2: ; { Reserved ... }
-        end
+        FWorkingBitmap.Assign(Form_Resources.Image_Logo2.Bitmap)
       else
         Exit;
     end;
-  AutoCropImage(FWorkingBitmap);
-  CenterMap(True);
-  var _BgOpacity :=   IfThen(FIsHighlightMode, 0.3, 1.0);
-  var _MapWidthPx :=  FPathFInder.Columns *  FSetCellSize;
-  var _MapHeightPx := FPathFInder.Rows *     FSetCellSize;
-  var _DestRect :=    TRectF.Create(FViewOffset.x, FViewOffset.y, FViewOffset.x + _MapWidthPx, FViewOffset.y + _MapHeightPx);
-
+  //AutoCropImage(FWorkingBitmap);                                              // Deprecating ...
+  var _BgOpacity   := IfThen(FIsHighlightMode, 0.3, 1.0);                       // Deprecating ...
+  var _dx := (PaintBox_Map.Width -  FWorkingBitmap.Width) / 2;
+  var _dy := (PaintBox_Map.Height - FWorkingBitmap.Height) /2;
+  var _DestRect := TRectF.Create(_dx, _dy, _dx + FWorkingBitmap.Width, _dy + FWorkingBitmap.Height);
   ACanvas.DrawBitmap(FWorkingBitmap, FWorkingBitmap.BoundsF, _DestRect, _BgOpacity);
 end;
 
-procedure TFormMain.DrawHeatmap(Canvas: TCanvas);
+procedure TFormMain.DrawHeatmap(ACanvas: TCanvas);
 var
   _StartX, _StartY, _EndX, _EndY: Integer;
 begin
@@ -2417,8 +2403,8 @@ begin
       begin
         GridToScreenP(_gCol, _gRow, _SPos);
         _Rect := TRectF.Create(_SPos.X, _SPos.Y, _SPos.X + FCellSize, _SPos.Y + FCellSize);
-        Canvas.Fill.Color := V_GWeightColorTable2[_Wght];
-        Canvas.FillRect(_Rect, 0, 0, [], 1.0);
+        ACanvas.Fill.Color := V_GWeightColorTable2[_Wght];
+        ACanvas.FillRect(_Rect, 0, 0, [], 1.0);
       end;
     end;
 end;
@@ -2444,7 +2430,7 @@ begin
     if not FWorkingBitmap.IsEmpty then
     begin
       var _BgOpacity := IfThen(FIsHighlightMode, 0.3, 1.0);
-      var _MapWidth: Single :=  0;
+      var _MapWidth: Single  :=  0;
       var _MapHeight: Single := 0;
       HexMapPixelSize(_MapWidth, _MapHeight);
       var _MapRect := RectF(FViewOffset.X, FViewOffset.Y,
@@ -2465,143 +2451,21 @@ begin
     DrawMarker(Canvas, 0, FStartPos);
     DrawMarker(Canvas, 1, FFinishPos);
 
-    if CheckBox_Weights.IsChecked then    /// Frame_Navigator1
-      DrawWeightHistogram(Canvas);
+    { DrawWeightHistogram }
+    if CheckBox_Weights.IsChecked then
+      Frame_Histogram1.UpdateHistogram(FMapWeights);
   finally
     Canvas.RestoreState(_State);
   end;
-end;
-
-{ ============================================================================ }
-{  DrawWeightHistogram                                                         }
-{  Draws a semi-transparent weight distribution histogram overlay              }
-{  at the bottom-center of PaintBox_Map.                                       }
-{ ============================================================================ }
-procedure TFormMain.DrawWeightHistogram(ACanvas: TCanvas);
-const
-  C_HistW      = 280;    // Total histogram width  (px)
-  C_HistH      = 80;     // Bar area height        (px)
-  C_PadX       = 14;     // Left/right inner padding
-  C_PadY       = 10;     // Top/bottom inner padding
-  C_BarGap     = 1;      // Gap between bars
-  C_LabelH     = 14;     // Space below bars for x-axis labels
-  C_PanelH     = C_HistH + C_PadY * 2 + C_LabelH;
-  C_PanelW     = C_HistW + C_PadX * 2;
-  C_CornerR    = 10;
-  C_BgAlpha    = 210;    // Panel background opacity  (0=transparent, 255=opaque)
-  C_BarAlpha   = 210;    // Bar opacity
-var
-  _Histo       : array[0..255] of Integer;
-  _Wgt         : Byte;
-  _Total       : Integer;
-  _MaxCount    : Integer;
-  _PanelLeft   : Single;
-  _PanelTop    : Single;
-  _BarW        : Single;
-  _BarH        : Single;
-  _BarX, _BarY : Single;
-  _i           : Integer;
-  _WallCount   : Integer;
-  _RoadCount   : Integer;
-  _Color       : TAlphaColor;
-  _Rect        : TRectF;
-begin
-  if (Length(FMapWeights) = 0) then Exit;
-
-  { ── 1. Build histogram ────────────────────────────────────────────── }
-  FillChar(_Histo, SizeOf(_Histo), 0);
-  _Total    := Length(FMapWeights);
-  _WallCount := 0;
-  _RoadCount := 0;
-  for _Wgt in FMapWeights do
-  begin
-    Inc(_Histo[_Wgt]);
-    if _Wgt = 255 then Inc(_WallCount);
-    if _Wgt <= 15 then Inc(_RoadCount);
-  end;
-
-  _MaxCount := 1;
-  for _i := 0 to 254 do                                                         // Exclude 255 (wall) from scale
-    if _Histo[_i] > _MaxCount then _MaxCount := _Histo[_i];
-
-  { ── 2. Panel position — bottom center of PaintBox ────────────────── }
-  _PanelLeft := (PaintBox_Map.Width  - C_PanelW) / 2;
-  _PanelTop  :=  PaintBox_Map.Height - C_PanelH - 12;
-
-  { ── 3. Panel background (rounded rect, semi-transparent) ─────── }
-  ACanvas.Fill.Kind  := TBrushKind.Solid;
-  ACanvas.Fill.Color := MakeAlphaColor(30, 32, 36, C_BgAlpha);
-  _Rect := RectF(_PanelLeft, _PanelTop, _PanelLeft + C_PanelW, _PanelTop + C_PanelH);
-  ACanvas.FillRect(_Rect, C_CornerR, C_CornerR, AllCorners, 1.0);
-
-  { Panel border }
-  ACanvas.Stroke.Kind      := TBrushKind.Solid;
-  ACanvas.Stroke.Color     := MakeAlphaColor(255, 255, 255, 220);
-  ACanvas.Stroke.Thickness := 1.0;
-  ACanvas.DrawRect(_Rect, C_CornerR, C_CornerR, AllCorners, 1.0);
-
-  { ── 4. Title ──────────────────────────────────────────────────── }
-  ACanvas.Fill.Color := MakeAlphaColor(200, 200, 200, 220);
-  ACanvas.Font.Size  := 9;
-  ACanvas.Font.Style := [];
-  ACanvas.FillText(RectF(_PanelLeft + C_PadX, _PanelTop + 3, _PanelLeft + C_PanelW - C_PadX, _PanelTop + C_PadY + 8),
-                  'Weight Distribution', False, 1.0, [], TTextAlign.Center);
-
-  { ── 5. Draw bars (0~254) ─────────────────────────────────────── }
-  _BarW := (C_HistW - C_BarGap * 254) / 255;
-
-  for _i := 0 to 254 do
-  begin
-    if _Histo[_i] = 0 then Continue;
-
-    _BarH := (_Histo[_i] / _MaxCount) * C_HistH;
-    _BarX := _PanelLeft + C_PadX + _i * (_BarW + C_BarGap);
-    _BarY := _PanelTop  + C_PadY + C_HistH - _BarH + 2;
-
-    _Color := MakeAlphaColor(255, 255,  255,  C_BarAlpha);
-
-    ACanvas.Fill.Color := _Color;
-    ACanvas.FillRect(RectF(_BarX, _BarY, _BarX + _BarW, _PanelTop + C_PadY + C_HistH + 2), 0, 0, [], 1.0);
-  end;
-
-  { ── 6. Wall bar (255) — shown separately, far right, dark red ── }
-  if _Histo[255] > 0 then
-  begin
-    _BarH := Min((_Histo[255] / _MaxCount) * C_HistH, C_HistH);
-    _BarX := _PanelLeft + C_PadX + 254 * (_BarW + C_BarGap) + 2;
-    _BarY := _PanelTop  + C_PadY + C_HistH - _BarH + 2;
-    ACanvas.Fill.Color := MakeAlphaColor(180, 30, 30, C_BarAlpha);
-    ACanvas.FillRect(RectF(_BarX, _BarY, _BarX + _BarW + 1, _PanelTop + C_PadY + C_HistH + 2), 0, 0, [], 1.0);
-  end;
-
-  { ── 7. X-axis tick labels  0 / 64 / 128 / 192 / 255 ─────────── }
-  ACanvas.Fill.Color := MakeAlphaColor(160, 160, 160, 200);
-  ACanvas.Font.Size  := 7.5;
-  for _i := 0 to 4 do
-  begin
-    var _val  := _i * 64; if _val > 255 then _val := 255;
-    var _tx   := _PanelLeft + C_PadX + _val * (_BarW + C_BarGap);
-    var _tyR  := RectF(_tx - 12, _PanelTop + C_PadY + C_HistH + 3, _tx + 12, _PanelTop + C_PanelH - 1);
-    ACanvas.FillText(_tyR, IntToStr(_val), False, 1.0, [], TTextAlign.Center);
-  end;
-
-  { ── 8. Stats overlay (Road% / Wall%) ─────────────────────────── }
-  var _RoadPct := Round(_RoadCount / _Total * 100);
-  var _WallPct := Round(_WallCount / _Total * 100);
-  var _StatsR  := RectF(_PanelLeft + C_PadX, _PanelTop  + 10, _PanelLeft + C_PanelW - C_PadX, _PanelTop  + 18);
-
-  ACanvas.Font.Size  := 7.5;
-
-  ACanvas.Fill.Color := MakeAlphaColor(80, 220, 80, 200);
-  ACanvas.FillText(_StatsR, Format('Road %d%%', [_RoadPct]), False, 1.0, [], TTextAlign.Leading);
-  ACanvas.FillText(_StatsR, Format('Wall %d%%', [_WallPct]), False, 1.0, [], TTextAlign.Trailing);
 end;
 
 procedure TFormMain.BackupCurrentPath();
 begin
   if FCurrentPath.Count > 0 then
   begin
-    FBackupPath:= FCurrentPath.Clone;
+    FBackupPath:= FCurrentPath.Clone;   { Reserved ... }
+    FBackup.Capture(FMapWeights, FPathFinder.Data, FPathFinder.Columns * FPathFinder.Rows);
+    ShowToastAlert('Backup All Weights');
   end;
 end;
 
@@ -2642,9 +2506,9 @@ end;
 
 procedure TFormMain.DrawMarker(ACanvas: TCanvas; const APosFlag: Integer; const AGridPos: TPoint);
 begin
-  var _SPos :=  GridToScreenF(AGridPos);
+  var _SPos  := GridToScreenF(AGridPos);
   var _MSize := Max(10, FCellSize * 1.5);
-  var _Rect :=  RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
+  var _Rect  := RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
 
   if APosFlag = 0
     then ACanvas.DrawBitmap(R_PosIconS, R_PosIconRectF, _Rect,  1.0, True)
@@ -2653,9 +2517,9 @@ end;
 
 procedure TFormMain.DrawMarker(ACanvas: TCanvas; const AGridPos: TPoint; const AColor1, AColor2: TAlphaColor; const ASymbol: string);
 begin
-  var _SPos :=  GridToScreenF(AGridPos);
+  var _SPos  := GridToScreenF(AGridPos);
   var _MSize := Max(14, FCellSize * 0.85);
-  var _Rect :=  RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
+  var _Rect  := RectF(_SPos.X - _MSize/2, _SPos.Y - _MSize/2, _SPos.X + _MSize/2, _SPos.Y + _MSize/2);
 
   with ACanvas do
   begin
@@ -2673,7 +2537,7 @@ begin
   with ACanvas do
   begin
     Fill.Color := AColor2;
-    Font.Size :=  Max(10, _MSize * 0.5);
+    Font.Size  := Max(10, _MSize * 0.5);
     FillText(_Rect, ASymbol, False, 1.0, [], TTextAlign.Center, TTextAlign.Center);
   end;
 end;
@@ -2772,7 +2636,7 @@ begin
     if IsHexLinePassable(_P1, _P3) then
       begin
         if _StartIdx + 2 < ATileMapPath.Count then
-        begin // = Delete
+        begin // = Delete   // Substitute for Move() ?
           Move(ATileMapPath.Points[_StartIdx + 2], ATileMapPath.Points[_StartIdx + 1],
               (ATileMapPath.Count - (_StartIdx + 2)) * SizeOf(TPoint));
         end;
@@ -2810,12 +2674,12 @@ begin
 
         with ACanvas do
         begin
-          Stroke.Dash :=      TStrokeDash.Solid;
-          Stroke.Color :=     IfThen(FIsHighlightMode, TAlphaColors.Cyan, FPathColor);
-          Stroke.Color :=     MakeAlphaColor(Stroke.Color, 0.6);
+          Stroke.Dash      := TStrokeDash.Solid;
+          Stroke.Color     := IfThen(FIsHighlightMode, TAlphaColors.Cyan, FPathColor);
+          Stroke.Color     := MakeAlphaColor(Stroke.Color, 0.6);
           Stroke.Thickness := Max(5, FCellSize * 0.3);
-          Stroke.Cap :=       TStrokeCap.Round;
-          Stroke.Join :=      TStrokeJoin.Round;
+          Stroke.Cap       := TStrokeCap.Round;
+          Stroke.Join      := TStrokeJoin.Round;
 
           DrawPath(_PathData, 1.0);
         end;
@@ -2830,11 +2694,11 @@ begin
 
       with ACanvas do
       begin
-        Stroke.Dash :=      TStrokeDash.Solid;
-        Stroke.Color :=     IfThen(FIsHighlightMode, TAlphaColors.Cyan, FPathColor);
-        Stroke.Color :=     MakeAlphaColor(Stroke.Color, 0.6);
+        Stroke.Dash      := TStrokeDash.Solid;
+        Stroke.Color     := IfThen(FIsHighlightMode, TAlphaColors.Cyan, FPathColor);
+        Stroke.Color     := MakeAlphaColor(Stroke.Color, 0.6);
         Stroke.Thickness := Max(5, FCellSize * 0.3);
-        Stroke.Cap :=       TStrokeCap.Round;
+        Stroke.Cap       := TStrokeCap.Round;
       end;
 
       for var _i := 0 to FCurrentPath.Count - 2 do
@@ -2865,7 +2729,7 @@ begin
   ScreenToGridP(FLastMousePos, _GX, _GY);
 
   var _Idx := _GY * FPathFInder.Columns + _GX;
-  FCurrentWeight :=     FMapWeights[_Idx];
+  FCurrentWeight    := FMapWeights[_Idx];
   FCurrentWightFlag := (FPathFinder.Data + _Idx)^;
 
   if CustomColorFlag then
@@ -2891,13 +2755,11 @@ begin
       var _ws: string := 'Change Weight -> 0';
       if IsInGrid(_GX, _GY) then
       begin
-        if FCurrentWeight > 0 then
+        if FCurrentWightFlag = 1 then
           begin
             var _val: Byte := Trunc(TrackBar_CellWeight.Value);
             (FPathFinder.Data + _Idx)^ := 0;
-            if (ssShift in Shift)
-              then FMapWeights[_Idx] := IIF.CastBool<Byte>(CheckBox_WeightCell.IsChecked, _val, 0)
-              else FMapWeights[_Idx] := 0;
+            FMapWeights[_Idx] := IIF.CastBool<Byte>(CheckBox_WeightCell.IsChecked, _val, 0);
           end
         else
           begin
@@ -2925,7 +2787,7 @@ begin
   ScreenToGridP(_NewPos, _GX, _GY);
 
   var _Idx := _GY * FPathFInder.Columns + _GX;
-  FCurrentWeight := FMapWeights[_Idx];
+  FCurrentWeight    := FMapWeights[_Idx];
   FCurrentWightFlag := (FPathFinder.Data + _Idx)^;
   FCurrGridX := _GX;
   FCurrGridY := _GY;
@@ -2958,7 +2820,12 @@ begin
       if IsInGrid(_GX, _GY) then
       begin
         if (ssShift in Shift) then begin (FPathFinder.Data + _Idx)^ := 1; FMapWeights[_Idx] := 255; end else
-        if (ssAlt in Shift)   then begin (FPathFinder.Data + _Idx)^ := 0; FMapWeights[_Idx] := 0;   end;
+        if (ssAlt in Shift)   then
+          begin
+            (FPathFinder.Data + _Idx)^ := 0;
+            var _val: Byte := Trunc(TrackBar_CellWeight.Value);
+            FMapWeights[_Idx] := IIF.CastBool<Byte>(CheckBox_WeightCell.IsChecked, _val, 0);
+          end;
         FCurrentWightFlag := (FPathFinder.Data + _Idx)^;
         UpdatePath;
       end;
@@ -3011,12 +2878,11 @@ begin
   if FPathFinder = nil then Exit;
 
   FZoomRatio := FCellSize / FSetCellSize;
-  Label_Zoom.Text :=        Format('🔍 Zoom: %.0f%%  ', [FZoomRatio*100]);
-  Label_ViewPos.Text :=     Format('👉 Grid (%d,%d) | Cell Size : %d | 💧 Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, Round(FCellSize),  FCurrentWeight, FCurrentWightFlag]);
-  Label_Grids.Text :=       Format('🏁 Grids %d x %d | Map Weight %.2f', [FPathFInder.Columns, FPathFInder.Rows, FWeightMultiplier]);
-  Label_SInfos.Text :=      Format('🧩 Nodes: %d | Distance: %.1f', [FCurrentPath.Count, FCurrentPath.Distance]);
-
-  Label_GPSInfos.Text :=    Format(C_GPSFormat, ['38° 53'' 42" N', '77° 0'' 54" W']);
+  Label_Zoom.Text     := Format('🔍 Zoom: %.0f%%  ', [FZoomRatio*100]);
+  Label_ViewPos.Text  := Format('👉 Grid (%d,%d) | Cell Size : %d(%d) | 💧 Cell Weight: %d [%d]', [FCurrGridX, FCurrGridY, Round(FCellSize), Round(FSetCellSize), FCurrentWeight, FCurrentWightFlag]);
+  Label_Grids.Text    := Format('🏁 Grids %d x %d | Map Weight %.2f', [FPathFInder.Columns, FPathFInder.Rows, FWeightMultiplier]);
+  Label_SInfos.Text   := Format('🧩 Nodes: %d | Distance: %.1f', [FCurrentPath.Count, FCurrentPath.Distance]);
+  Label_GPSInfos.Text := Format(C_GPSFormat, ['38° 53'' 42" N', '77° 0'' 54" W']);
 end;
 
 { ToolBar -------------------------------------------------------------------- }
@@ -3059,7 +2925,7 @@ begin
 
   TrackBar_WeightMultiplier.Value := 100.0;
   TrackBar_TileSize.Value         := C_CellSizeDefault;
-  TrackBar_CellWeight.Value       := 255;
+  TrackBar_CellWeight.Value       := 0;
   TrackBar_WallFactor.Value       := 3;
   TrackBar_HistoFactor.Value      := 0.5;
 
@@ -3135,40 +3001,38 @@ begin
   if ADialogFlag then
     begin
       var _SaveDialog := TSaveDialog.Create(nil);
+      with _SaveDialog do
       try
-        _SaveDialog.Filter := 'PNG Image|*.png';
-        _SaveDialog.DefaultExt := 'png';
-        _SaveDialog.FileName := FSnapshotPath + Format('Snapshot_%s.png', [FormatDateTime('yymmdd_hhnnss', Now)]);
-        _Snapenflag := _SaveDialog.Execute;
-        _SaveFile := _SaveDialog.FileName;
+        Filter      := 'PNG Image|*.png';
+        DefaultExt  := 'png';
+        FileName    := FSnapshotPath + Format('Snapshot_%s.png', [FormatDateTime('yymmdd_hhnnss', Now)]);
+        _Snapenflag := Execute;
+        _SaveFile   := FileName;
       finally
-        _SaveDialog.Free;
+        Free;
       end;
     end
   else
     begin
-      _SaveFile := FSnapshotPath + Format('Snapshot_%s.png', [FormatDateTime('yymmdd_hhnnss', Now)]);
+      _SaveFile   := FSnapshotPath + Format('Snapshot_%s.png', [FormatDateTime('yymmdd_hhnnss', Now)]);
       _Snapenflag := True;
     end;
 
   if _Snapenflag and (_SaveFile > ' ') then
-    begin
-      TTask.Run(procedure
+  TTask.Run(procedure
+  begin
+    var _ScreenShot := PaintBox_Map.MakeScreenshot;
+    try
+      _ScreenShot.SaveToFile(_SaveFile);
+      if FileExists(_SaveFile) then
+      TThread.Queue(nil, procedure
       begin
-        var _ScreenShot := PaintBox_Map.MakeScreenshot;
-        try
-          _ScreenShot.SaveToFile(_SaveFile);
-          if FileExists(_SaveFile) then
-          TThread.Queue(nil,
-            procedure
-            begin
-              ShowToastAlert('Saved a Snapshot');
-            end);
-        finally
-          _ScreenShot.Free;
-        end;
+        ShowToastAlert('Saved a Snapshot');
       end);
+    finally
+      _ScreenShot.Free;
     end;
+  end);
 end;
 
 var
@@ -3180,31 +3044,31 @@ begin
   Alert_Container := TRectangle.Create(Self);
   with Alert_Container do
   begin
-    Parent :=      Self;
-    Align :=       TAlignLayout.None;
-    Fill.Color :=  TAlphaColors.Black;
+    Parent      := Self;
+    Align       := TAlignLayout.None;
+    Fill.Color  := TAlphaColors.Black;
     Stroke.Kind := TBrushKind.None;
-    XRadius :=     8;
-    YRadius :=     8;
-    Width :=       200;
-    Height :=      30;
-    Opacity :=     0; // Start invisible for animation
+    XRadius     := 8;
+    YRadius     := 8;
+    Width       := 200;
+    Height      := 30;
+    Opacity     := 0; // Start invisible for animation
 
-    Position.X := 10;
-    Position.Y := Self.ClientHeight - Height - 42;
-    Anchors := [TAnchorKind.akLeft, TAnchorKind.akBottom];
+    Position.X  := 10;
+    Position.Y  := Self.ClientHeight - Height - 42;
+    Anchors     := [TAnchorKind.akLeft, TAnchorKind.akBottom];
   end;
 
   { Add Label for text }
   var _Label := TLabel.Create(Alert_Container);
   with _Label do
   begin
-    Parent :=    Alert_Container;
-    Align :=     TAlignLayout.Client;
-    TextAlign := TTextAlign.Center;
+    Parent         := Alert_Container;
+    Align          := TAlignLayout.Client;
+    TextAlign      := TTextAlign.Center;
     StyledSettings := [TStyledSetting.Family, TStyledSetting.Size];
     TextSettings.FontColor := TAlphaColorRec.White;
-    Text := '🔔 '+AMsg;
+    Text           := '🔔 '+AMsg;
   end;
 
   { Animation 1: Fade In }
@@ -3214,13 +3078,13 @@ begin
   var _Anim := TFloatAnimation.Create(Alert_Container);
   with  _Anim do
   begin
-    Parent :=       Alert_Container;
+    Parent       := Alert_Container;
     PropertyName := 'Opacity';
-    StartValue :=   1.0;
-    StopValue :=    0.0;
-    Duration :=     0.5;
-    Delay :=        3.0;                                                        // Wait 2 seconds before disappearing
-    OnFinish :=     AnimationFinishedEvent;
+    StartValue   := 1.0;
+    StopValue    := 0.0;
+    Duration     := 0.5;
+    Delay        := 3.0;                                                        // Wait 2 seconds before disappearing
+    OnFinish     := AnimationFinishedEvent;
 
     Start;
   end;
@@ -3240,12 +3104,11 @@ begin
   begin
     var _SavePath := FSnapshotPath + Format('ScreenSnap_%s.png', [FormatDateTime('yymmddhhnnss', Now)]);
     CaptureCleanWorkArea(_SavePath);
-      if FileExists(_SavePath) then
-      TThread.Queue(nil,
-        procedure
-        begin
-          ShowToastAlert('Saved a Screen Capture');
-        end);
+    if FileExists(_SavePath) then
+    TThread.Queue(nil, procedure
+    begin
+      ShowToastAlert('Saved a Screen Capture');
+    end);
   end);
 end;
 
@@ -3267,21 +3130,26 @@ end;
 
 procedure TFormMain.ActionList1Update(Action: TBasicAction; var Handled: Boolean);
 begin
-  Rectangle_Options.Enabled :=        not FLockMapFlag;
-  Rectangle_CustomWeight.Enabled :=   not FLockMapFlag;
-  Action_Highleght.Enabled :=         not FLockMapFlag;
-  Button_Heighlight.Enabled :=        not FLockMapFlag;
-  Action_Options.Enabled :=           not FLockMapFlag;
-  Action_ResetMap.Enabled :=          not FLockMapFlag;
-  Action_CustomWeight.Enabled :=      not FLockMapFlag;
-  Action_RestoreWeights.Enabled :=    not FLockMapFlag and FBackup.IsAvailable;
-  Action_CustomApplyToAll.Enabled :=  False;                                    // Reserved ...
-  Layout_WeightGroup.Visible :=       not FLockMapFlag;
-  StatusBar_Map.Visible :=            not FLockMapFlag;
-  TrackBar_CellWeight.Enabled :=      not FLockMapFlag and CheckBox_WeightCell.IsChecked;
+  Rectangle_Options.Enabled        := not FLockMapFlag;
+  Rectangle_CustomWeight.Enabled   := not FLockMapFlag;
+  Action_Highleght.Enabled         := not FLockMapFlag;
+  Button_Heighlight.Enabled        := not FLockMapFlag;
+  Action_Options.Enabled           := not FLockMapFlag;
+  Action_ResetMap.Enabled          := not FLockMapFlag;
+  Action_CustomWeight.Enabled      := not FLockMapFlag;
+  Action_RestoreWeights.Enabled    := not FLockMapFlag and FBackup.IsAvailable;
+  Layout_WeightGroup.Visible       := not FLockMapFlag;
+  StatusBar_Map.Visible            := not FLockMapFlag;
+  Label_GPSInfos.Visible           := not FLockMapFlag;
+  Path_Compass.Visible             := not FLockMapFlag;
+  TrackBar_CellWeight.Enabled      := not FLockMapFlag and CheckBox_WeightCell.IsChecked;
   Action_CustomApplayToMap.Enabled := not FLockMapFlag and (ListBox_CustomWeights.Items.Count > 0);
-  TrackBar_HistoFactor.Enabled :=     not FLockMapFlag and CheckBox_HistoEqual.IsChecked;
-  Frame_Navigator1.Visible :=         not FLockMapFlag and CheckBox_Weights.IsChecked;
+  TrackBar_HistoFactor.Enabled     := not FLockMapFlag and CheckBox_HistoEqual.IsChecked;
+  Frame_Navigator1.Visible         := not FLockMapFlag and CheckBox_Weights.IsChecked;
+  Frame_Histogram1.Visible         := not FLockMapFlag and CheckBox_Weights.IsChecked;
+  Action_CustomBackup.Enabled      := not FLockMapFlag;
+
+  UpdatePosNavigator;
 
   with CheckBox_HeatMap do
   begin
@@ -3334,20 +3202,22 @@ begin
     Action_HelpExecute(self);
   end;
 
-  OpenDialog_Map.InitialDir :=  ParamStr(0);
-  OpenDialog_Map.Filter :=      TBitmapCodecManager.GetFilterString;
-  OpenDialog_Map.FilterIndex := 1;
-  if OpenDialog_Map.Execute then
+  with OpenDialog_Map do
   begin
-    FLockMapFlag := False;                                                      // Only UnLockFlag / Exclusive ....
-    FMapBitmap.LoadFromFile(OpenDialog_Map.FileName);
-    FWorkingBitmap.Assign(FMapBitmap);
+    InitialDir  := ParamStr(0);
+    Filter      := TBitmapCodecManager.GetFilterString;
+    FilterIndex := 1;
+    if Execute then
+    begin
+      FLockMapFlag := False;                                                    // Only UnLockFlag / Exclusive ....
 
-    Frame_Navigator1.NaviBitmap := FWorkingBitmap;
-    SyncNavigator;
+      FMapBitmap.LoadFromFile(FileName);
+      FWorkingBitmap.Assign(FMapBitmap);
+      Frame_Navigator1.NaviBitmap := FWorkingBitmap;
 
-    InitializeDrawPath(True);
-    Path_Compass.Visible :=  True;
+      InitializeDrawPath(True);                                                 // -> CenterMap -> ConstrainViewOffset -> SyncNavigator
+      Path_Compass.Visible :=  True;
+    end;
   end;
 end;
 
@@ -3356,6 +3226,18 @@ begin
   if MultiView_Options.IsShowed
     then MultiView_Options.HideMaster
     else MultiView_Options.ShowMaster;
+end;
+
+procedure TFormMain.Action_PrivateExecute(Sender: TObject);
+begin
+  if FLockMapFlag then Exit;
+
+  FLockMapFlag := True;
+
+  FMapBitmap.Assign(nil);
+  FWorkingBitmap.Assign(nil);
+
+  PaintBox_Map.Repaint;
 end;
 
 procedure TFormMain.Action_ResetMapExecute(Sender: TObject);
@@ -3393,7 +3275,7 @@ begin
   if (AFlag = 1) and (not FWeightStackManager.IsStackValid(AStackName)) then Exit;
 
   { Backup ... }
-  FBackup.Capture(FMapWeights, FPathFinder.Data, FPathFinder.Columns * FPathFinder.Rows);
+  BackupCurrentPath();
   FLockMapFlag := True;
 
   var _applycount       := 0;
@@ -3404,8 +3286,7 @@ begin
   var _wgtPtr: PByte    := @FMapWeights[0];
 
   var _stackarray: TArray<Byte>;
-  //const _offset: Byte = 10;   kkk
-  var _low: Byte :=  Max(0,   AWeight - FCustomOffSet);
+  var _low: Byte  := Max(0,   AWeight - FCustomOffSet);
   var _high: Byte := Min(255, AWeight + FCustomOffSet);
   // Add to Stack ----------------------------------------------------------- //
   if AFlag = 0
@@ -3445,8 +3326,8 @@ begin
   var _pos: TPointF := Button__CustomWeights.LocalToAbsolute(PointF(Button__CustomWeights.Width / 2 , Button__CustomWeights.Height));
   Layout_CustomWeight.Position.X := _pos.X - (Layout_CustomWeight.Width / 2);
   Layout_CustomWeight.Position.Y := _pos.Y + 2;
-  Layout_CustomWeight.Height := 220;
-  Layout_CustomWeight.Visible := not Layout_CustomWeight.Visible;
+  Layout_CustomWeight.Height     := 220;
+  Layout_CustomWeight.Visible    := not Layout_CustomWeight.Visible;
 
   if Layout_CustomWeight.Visible then
   RefreshStackManager(0);
@@ -3470,7 +3351,7 @@ begin
     ComboBox_CustomWeight.Clear;
     ListBox_CustomWeights.Items.Clear;
 
-    FMapCategory := Value;
+    FMapCategory   := Value;
     FStackFileName := ExtractFilePath(ParamStr(0))+C_CatJson[Value];
 
     try
@@ -3565,7 +3446,6 @@ begin
     var _Key := FWeightStackManager.GetStackKey(_stackname);
     if _Key >= 0 then
     ApplyTerrainCustomization(1, _stackname, FCurrentWeight, _Key);
-    //Layout_CustomWeight.Visible := False;
   end;
 end;
 
@@ -3632,9 +3512,9 @@ begin
   //  Reserved ...
 end;
 
-procedure TFormMain.Action_CustomApplyToAllExecute(Sender: TObject);
+procedure TFormMain.Action_CustomBackupExecute(Sender: TObject);
 begin
-  //  Reserved ...
+  BackupCurrentPath();
 end;
 
 procedure TFormMain.Action_CustomDeleteExecute(Sender: TObject);
@@ -3655,6 +3535,7 @@ begin
         mrYes:
           begin
             FWeightStackManager.RemoveStack(_stackname);
+            ListBox_CustomWeights.Clear;
             RefreshStackManager(1);
           end;
       end;
@@ -3675,6 +3556,7 @@ begin
         mrYes:
           begin
             FWeightStackManager.Clear;
+            ListBox_CustomWeights.Clear;
             RefreshStackManager(1);
           end;
       end;
@@ -3686,9 +3568,9 @@ begin
   HideCustomWeight(0);
 end;
 
-procedure TFormMain.pm_ApplyToAllClick(Sender: TObject);
+procedure TFormMain.pm_BackupWeightsClick(Sender: TObject);
 begin
-  Action_CustomApplyToAllExecute(Self);
+  Action_CustomBackupExecute(Self);
 end;
 
 procedure TFormMain.pm_ApplyToMapClick(Sender: TObject);
@@ -3714,7 +3596,7 @@ end;
 procedure TFormMain.pm_LoadFromFileClick(Sender: TObject);
 begin
   OpenDialog_Custom.InitialDir := ParamStr(0);
-  OpenDialog_Custom.FileName :=   ExtractFileName(FStackFileName);
+  OpenDialog_Custom.FileName   := ExtractFileName(FStackFileName);
   if OpenDialog_Custom.Execute then
   begin
     FWeightStackManager.LoadFromFile(OpenDialog_Custom.FileName);
@@ -3731,7 +3613,7 @@ end;
 procedure TFormMain.pm_SaveToFileClick(Sender: TObject);
 begin
   SaveDialog_Custom.InitialDir:= ParamStr(0);
-  SaveDialog_Custom.FileName :=  ExtractFileName(FStackFileName);
+  SaveDialog_Custom.FileName  := ExtractFileName(FStackFileName);
   if SaveDialog_Custom.Execute then
   begin
     FWeightStackManager.SaveToFile(SaveDialog_Custom.FileName);
@@ -3802,16 +3684,16 @@ begin
       var _HexH    := FCellSize * C_SQRT3_2_MAX;
 
       _VR.Left   := (0   - FViewOffset.X) / _ColStep * (_BW / FPathFinder.Columns);
-      _VR.Right  := (_PW  - FViewOffset.X) / _ColStep * (_BW / FPathFinder.Columns);
+      _VR.Right  := (_PW - FViewOffset.X) / _ColStep * (_BW / FPathFinder.Columns);
       _VR.Top    := (0   - FViewOffset.Y) / _HexH    * (_BH / FPathFinder.Rows);
-      _VR.Bottom := (_PH  - FViewOffset.Y) / _HexH    * (_BH / FPathFinder.Rows);
+      _VR.Bottom := (_PH - FViewOffset.Y) / _HexH    * (_BH / FPathFinder.Rows);
     end
   else
     begin
       _VR.Left   := (0   - FViewOffset.X) / FCellSize * (_BW / FPathFinder.Columns);
-      _VR.Right  := (_PW  - FViewOffset.X) / FCellSize * (_BW / FPathFinder.Columns);
+      _VR.Right  := (_PW - FViewOffset.X) / FCellSize * (_BW / FPathFinder.Columns);
       _VR.Top    := (0   - FViewOffset.Y) / FCellSize * (_BH / FPathFinder.Rows);
-      _VR.Bottom := (_PH  - FViewOffset.Y) / FCellSize * (_BH / FPathFinder.Rows);
+      _VR.Bottom := (_PH - FViewOffset.Y) / FCellSize * (_BH / FPathFinder.Rows);
     end;
 
   // Bitmap Range Clamping
@@ -3845,9 +3727,26 @@ begin
 
   FViewOffset.X := FViewOffset.X + _ScreenDX;
   FViewOffset.Y := FViewOffset.Y + _ScreenDY;
-  // With clamping + Sync Navigator
-  ConstrainViewOffset;
+
+  ConstrainViewOffset;                                                          // With clamping + Sync Navigator
   PaintBox_Map.Repaint;
+end;
+
+procedure TFormMain.UpdatePosNavigator( const ASyncFlag: Integer = 0);
+begin
+  var _Point := PaintBox_Map.LocalToAbsolute(PointF(PaintBox_Map.Width, PaintBox_Map.Height));
+  if Frame_Histogram1.Visible then
+  begin
+    Frame_Histogram1.Position.X := 14;
+    Frame_Histogram1.Position.Y := _Point.Y -  Frame_Histogram1.Height -14;
+  end;
+  if Frame_Navigator1.Visible then
+  begin
+    Frame_Navigator1.Position.X := _Point.X -  Frame_Navigator1.Width - 14;
+    Frame_Navigator1.Position.Y := _Point.Y -  Frame_Navigator1.Height -14;
+
+    if ASyncFlag = 1 then SyncNavigator;                                        // Deprecating ...
+  end;
 end;
 
 end.

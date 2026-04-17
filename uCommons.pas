@@ -25,6 +25,9 @@ uses
 const
   C_BackgroundColor = TAlphaColor($16253d);  // R,G,B = 22,37,61
 
+  SYMBOL_STAR_FILL  = #$2605; // ★
+  SYMBOL_STAR_EMPTY = #$2606; // ☆
+
 type
   TVectorHelper = record helper for TVector
     function Length: Single;
@@ -33,7 +36,6 @@ type
   end;
 
   { MousePosChecker }
-
   TFormHelper = class helper for TCommonCustomForm
   public
     function IsMouseInside(): Boolean;
@@ -50,6 +52,9 @@ type
     class function CastBool<T>(AExpression: Boolean; const ATrue, AFalse: T): T; static;
   end;
 
+function  PreventSleep: Boolean;
+procedure AllowSleep;
+
 procedure Global_TrimAppMemorySizeEx(const AStrategy: Integer=0);
 procedure ShowFixedMsg(const ATitle, AMsg: string);
 
@@ -58,12 +63,14 @@ procedure RGBToHSV(const ARGB: TAlphaColor; out H, S, V: Single); overload;
 procedure HSVToRGB(const H, S, V: Single; out R, G, B: Byte);
 
 function  MakeAlphaColor(const AColor: TAlphaColor; const AAlpha: Byte): TAlphaColor; overload;
-function  MakeAlphaColor(const AR, AG, AB: Byte; const AA: Byte = $FF): TAlphaColor; overload;
+function  MakeAlphaColor(const R, G, B: Byte; const A: Byte = $FF): TAlphaColor; overload;
 function  MakeAlphaColor(const AColor: TAlphaColor; const AOpacity: Single): TAlphaColor; overload;
 
 function  CaptureComponent(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
 procedure CaptureCleanWorkArea(const AFileName: string);
 procedure CaptureScreenToFile(const AFileName: string);
+
+function AreStaticArraysEqual(const A, B; const ASize: NativeInt): Boolean;
 
 implementation
 
@@ -111,6 +118,12 @@ const
                   Developed with the help of AI (Gemini, Claude)
                 ''';
 
+{ AreArraysEqual }
+
+function AreStaticArraysEqual(const A, B; const ASize: NativeInt): Boolean;
+begin
+  Result := CompareMem(@A, @B, ASize);
+end;
 
 { TFormHelper / MousePosChecker ---------------------------------------------- }
 
@@ -186,6 +199,29 @@ begin
     Result := Self;
 end;
 
+// Start sleep protection
+// Flag ...
+// ES_CONTINUOUS        : Keep settings consistent (use alone when turned off)
+// ES_SYSTEM_REQUIRED   : Preventing the system from entering sleep mode
+// ES_DISPLAY_REQUIRED  : Prevent the monitor from turning off
+// ES_AWAYMODE_REQUIRED : For background operations such as media servers (Away Mode)
+function PreventSleep: Boolean;
+begin
+  var _result: EXECUTION_STATE := SetThreadExecutionState(
+                                    ES_CONTINUOUS or
+                                    ES_SYSTEM_REQUIRED or   // Preventing System Power Saving
+                                    ES_DISPLAY_REQUIRED     // Screen Off Prevention
+                                  );
+
+  Result := _result <> 0;
+end;
+
+// Turn off sleep protection (restore)
+procedure AllowSleep;
+begin
+  SetThreadExecutionState(ES_CONTINUOUS);
+end;
+
 { Replacing anonymous methods ------------------------------------------------ }
 
 type
@@ -229,23 +265,23 @@ begin
     begin
       if ATitle <> '' then Caption := ' '+ATitle+c_Welcome
                       else Caption := 'Crystal Path Finder - 2026';
-      Width := 550;
-      Height := 700;
-      Position := TFormPosition.MainFormCenter;
+      Width       := 550;
+      Height      := 700;
+      Position    := TFormPosition.MainFormCenter;
       BorderStyle := TFmxFormBorderStyle.Single;
       BorderIcons := [];
 
-      OnKeyDown := _Handler.FormKeyDown;
+      OnKeyDown   := _Handler.FormKeyDown;
     end;
 
     var _MsgText := TMemo.Create(_MsgForm);
     with _MsgText do
     begin
-      Parent := _MsgForm;
-      Align := TAlignLayout.Client;
+      Parent       := _MsgForm;
+      Align        := TAlignLayout.Client;
       Margins.Rect := TRectF.Create(10, 10, 10, 50);
-      ReadOnly := True;
-      HitTest := False;
+      ReadOnly     := True;
+      HitTest      := False;
       if AMsg <> '' then Text := AMsg
                     else Text := C_ShortKeys;
 
@@ -257,16 +293,16 @@ begin
     var _OkBtn := TButton.Create(_MsgForm);
     with _OkBtn do
     begin
-      Parent := _MsgForm;
-      Text := 'OK';
-      Width := 80;
-      Height := 30;
-      CanFocus := True;
+      Parent     := _MsgForm;
+      Text       := 'OK';
+      Width      := 80;
+      Height     := 30;
+      CanFocus   := True;
 
       Position.X := (_MsgForm.Width - Width) / 2;
       Position.Y := _MsgForm.Height - 75;
-      Anchors :=[TAnchorKind.akBottom];
-      Default := True;
+      Anchors    := [TAnchorKind.akBottom];
+      Default    := True;
 
       ModalResult := mrOk;
     end;
@@ -401,10 +437,6 @@ end;
 { R, G, B : 0 ~ 255                                                            }
 
 procedure HSVToRGB(const H, S, V: Single; out R, G, B: Byte);
-var
-  _Hi : Integer;
-  _F, _P, _Q, _T: Single;
-  _RF, _GF, _BF : Single;
 begin
   if S <= 0.0 then
   begin
@@ -416,12 +448,12 @@ begin
   end;
 
   { Hue sector 0~5  (each sector spans 60°) }
-  _Hi := Trunc(H / 60.0) mod 6;
-  _F  := (H / 60.0) - Trunc(H / 60.0);   { fractional part within sector }
-
-  _P  := V * (1.0 - S);
-  _Q  := V * (1.0 - S * _F);
-  _T  := V * (1.0 - S * (1.0 - _F));
+  var _Hi := Trunc(H / 60.0) mod 6;
+  var _F  := (H / 60.0) - Trunc(H / 60.0);   { fractional part within sector }
+  var _P  := V * (1.0 - S);
+  var _Q  := V * (1.0 - S * _F);
+  var _T  := V * (1.0 - S * (1.0 - _F));
+  var _RF, _GF, _BF : Single;
 
   case _Hi of
     0: begin _RF := V;  _GF := _T;  _BF := _P; end;
@@ -441,36 +473,32 @@ end;
 { From Delphi 13 - System.UIConsts ------------------------------------------- }
 
 procedure RGB2HSL(const RGB: TAlphaColor; out H, S, L: Single);   { = Copy from RGBToHSL }
-var
-  _R, _G, _B: Single;
-  _D, _mx, _mn: Single;
 
   function _Max(AVarFirst, AVarSecond : Single) : Single ;
   begin
-    if AVarFirst < AVarSecond then
-      Result := AVarSecond
-    else
-      Result := AVarFirst ;
+    if AVarFirst < AVarSecond
+      then Result := AVarSecond
+      else Result := AVarFirst ;
   end ;
 
   function _Min(AVarFirst, AVarSecond : Single) : Single ;
   begin
-    if AVarFirst > AVarSecond then
-      Result := AVarSecond
-    else
-      Result := AVarFirst ;
+    if AVarFirst > AVarSecond
+      then Result := AVarSecond
+      else Result := AVarFirst ;
   end ;
 
 begin
-  _R  := TAlphaColorRec(RGB).R / $FF;
-  _G  := TAlphaColorRec(RGB).G / $FF;
-  _B  := TAlphaColorRec(RGB).B / $FF;
-  _mx := _Max(_Max(_R, _G), _B);
-  _mn := _Min(_Min(_R, _G), _B);
+  var _R  := TAlphaColorRec(RGB).R / $FF;
+  var _G  := TAlphaColorRec(RGB).G / $FF;
+  var _B  := TAlphaColorRec(RGB).B / $FF;
+  var _mx := _Max(_Max(_R, _G), _B);
+  var _mn := _Min(_Min(_R, _G), _B);
   H  := (_mx + _mn) / 2;
   L  := H;
   S  := H;
 
+  var _D: Single := 0;
   if (_mx = _mn) then
     begin
       S := 0;
@@ -489,20 +517,20 @@ begin
     end;
 end;
 
-function RGBtoHSL(const AR, AG, AB: Byte; out H, S, L: Single): TAlphaCOlor;
+function RGBtoHSL(const R, G, B: Byte; out H, S, L: Single): TAlphaCOlor;
 begin
-  var _RGBCOlor := MakeAlphaColor(AR, AG, AB, 255);
+  var _RGBCOlor := MakeAlphaColor(R, G, B, 255);
   RGB2HSL(_RGBCOlor, H, S, L);
 end;
 
 { Copy From System.UIConsts }
 
-function MakeAlphaColor(const AR, AG, AB: Byte; const AA: Byte = $FF): TAlphaColor; overload;
+function MakeAlphaColor(const R, G, B: Byte; const A: Byte = $FF): TAlphaColor; overload;
 begin
-  TAlphaColorRec(Result).R := AR;
-  TAlphaColorRec(Result).G := AG;
-  TAlphaColorRec(Result).B := AB;
-  TAlphaColorRec(Result).A := AA;
+  TAlphaColorRec(Result).R := R;
+  TAlphaColorRec(Result).G := G;
+  TAlphaColorRec(Result).B := B;
+  TAlphaColorRec(Result).A := A;
 end;
 
 function MakeAlphaColor(const AColor: TAlphaColor; const AOpacity: Single): TAlphaColor; overload;
@@ -534,23 +562,23 @@ end;
 
 { Others Section ------------------------------------------------------------- }
 
-function Clamp_I(const Value, Min, Max: Integer): Integer;
+function Clamp_I(const AValue, AMin, AMax: Integer): Integer;
 begin
-  if Value < Min then Result := Min else
-  if Value > Max then Result := Max
-                 else Result := Value;
+  if AValue < AMin then Result := AMin else
+  if AValue > AMax then Result := AMax
+                   else Result := AValue;
 end;
 
-function Clamp_S(const Value, Min, Max: Single): Single;
+function Clamp_S(const AValue, AMin, AMax: Single): Single;
 begin
-  if Value < Min then Result := Min else
-  if Value > Max then Result := Max
-                 else Result := Value;
+  if AValue < AMin then Result := AMin else
+  if AValue > AMax then Result := AMax
+                   else Result := AValue;
 end;
 
-function OneDiv(aPoint: TPointF): TPointF;
+function OneDiv(APoint: TPointF): TPointF;
 begin
-  var _Q := aPoint;
+  var _Q := APoint;
   if _Q.X = 0.0 then _Q.X := 1E-5;
   if _Q.Y = 0.0 then _Q.Y := 1E-5;
   Result := PointF(1 / Abs(_Q.X), 1 / Abs(_Q.Y));
@@ -569,10 +597,9 @@ end;
 function Limit_Point(V: TPointF; Max: Single): TPointF;
 begin
   var _MagSq: Single := V.X * V.X + V.Y * V.Y;
-  if _MagSq > Max * Max then
-    Result := V.Normalize * Max
-  else
-    Result := V;
+  if _MagSq > Max * Max
+    then Result := V.Normalize * Max
+    else Result := V;
 end;
 
 function Set_Mag(V: TPointF; Mag: Single): TPointF;
@@ -623,11 +650,11 @@ end;
 
 { Deprecating ... }
 
-function GetDirectionColor2(const Theta: Double): TAlphaColor;
+function GetDirectionColor2(const ATheta: Double): TAlphaColor;
 var
   _R, _G, _B: Byte;
 begin
-  var _Hue: Double := (Theta + Pi) / (2 * Pi);
+  var _Hue: Double := (ATheta + Pi) / (2 * Pi);
   if _Hue < 0.33 then
     begin
       _R := 255;

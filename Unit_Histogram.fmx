@@ -1,0 +1,42 @@
+object Frame_Histogram: TFrame_Histogram
+  Size.Width = 316.000000000000000000
+  Size.Height = 116.000000000000000000
+  Size.PlatformDefault = False
+  object Layout_Histogram: TLayout
+    Align = Contents
+    Size.Width = 316.000000000000000000
+    Size.Height = 116.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object Rectangle_Histogram: TRectangle
+      Align = Contents
+      Fill.Color = claNull
+      Size.Width = 316.000000000000000000
+      Size.Height = 116.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = claWhite
+      XRadius = 10.000000000000000000
+      YRadius = 10.000000000000000000
+      object PaintBox_Histogram: TPaintBox
+        Align = Contents
+        HitTest = False
+        Size.Width = 316.000000000000000000
+        Size.Height = 116.000000000000000000
+        Size.PlatformDefault = False
+        OnPaint = PaintBox_HistogramPaint
+      end
+      object Label1: TLabel
+        Align = Top
+        StyledSettings = [Family, Style]
+        Size.Width = 316.000000000000000000
+        Size.Height = 17.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 9.000000000000000000
+        TextSettings.FontColor = claChartreuse
+        TextSettings.HorzAlign = Center
+        Text = 'Weight Distribution'
+        TabOrder = 1
+      end
+    end
+  end
+end
