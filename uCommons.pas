@@ -13,7 +13,8 @@ uses
   System.Math,
   System.Math.Vectors,
 
-  Winapi.Windows,        { - for Windows PlatForm}
+  Winapi.Windows,        { - for Windows PlatForm }
+  Winapi.Messages,       { - for Windows PlatForm }
 
   FMX.Types,
   FMX.Graphics,
@@ -52,6 +53,8 @@ type
     class function CastBool<T>(AExpression: Boolean; const ATrue, AFalse: T): T; static;
   end;
 
+function SendLogToViewer(const AMessage: string; const AFlag: Integer=0): Boolean;
+
 function  PreventSleep: Boolean;
 procedure AllowSleep;
 
@@ -63,20 +66,18 @@ procedure RGBToHSV(const ARGB: TAlphaColor; out H, S, V: Single); overload;
 procedure HSVToRGB(const H, S, V: Single; out R, G, B: Byte);
 
 function  MakeAlphaColor(const AColor: TAlphaColor; const AAlpha: Byte): TAlphaColor; overload;
-function  MakeAlphaColor(const R, G, B: Byte; const A: Byte = $FF): TAlphaColor; overload;
 function  MakeAlphaColor(const AColor: TAlphaColor; const AOpacity: Single): TAlphaColor; overload;
+function  MakeAlphaColor(const R, G, B: Byte; const A: Byte = $FF): TAlphaColor; overload;
 
-function  CaptureComponent(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
-procedure CaptureCleanWorkArea(const AFileName: string);
-procedure CaptureScreenToFile(const AFileName: string);
+function  StartCaptureToFile(const AFileName: string): Boolean;
+function  CaptureControlToFile(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
 
-function AreStaticArraysEqual(const A, B; const ASize: NativeInt): Boolean;
+function  AreStaticArraysEqual(const A, B; const ASize: NativeInt): Boolean;
 
 implementation
 
 uses
-  SYstem.UIConsts,
-  Vcl.Graphics, { - for Windows PlatForm}
+  System.UIConsts,
   Unit_Main;
 
 const
@@ -118,7 +119,36 @@ const
                   Developed with the help of AI (Gemini, Claude)
                 ''';
 
-{ AreArraysEqual }
+{ RealTimeLogViewer ---------------------------------------------------------- }
+
+const
+  C_LogViewerFlag: Integer = 0;  { for Self-Debugging 1: Emabled }
+
+const  { Reference ... }
+  R_Imojis: array [0..9] of string = ('', '🌟', '🔔', '🚩', '🔍', '🚀', '📦', '❌', '✔', '❓');
+
+function SendLogToViewer(const AMessage: string; const AFlag: Integer = 0): Boolean;
+begin
+  Result := False;
+  if C_LogViewerFlag = 0 then Exit;    { - Check Point ----------------------- }
+
+  var _SafeFlag := EnsureRange(AFlag, 0, 9);
+  var _TargetHWND: HWND := FindWindowEx(HWND_MESSAGE, 0, 'FMTForm_Main', 'RealTimeLogViewer');
+  if _TargetHWND = 0 then _TargetHWND := FindWindow(nil, 'RealTimeLogViewer');
+  if _TargetHWND = 0 then Exit;
+
+  var _SafeMsg := AMessage;
+  UniqueString(_SafeMsg);
+
+  var _CDS: TCopyDataStruct;
+  _CDS.dwData := DWORD(_SafeFlag);                                              // ★ Flag to dwData
+  _CDS.cbData := (Length(_SafeMsg) + 1) * SizeOf(WideChar);                     // ★ WideChar Specification
+  _CDS.lpData := PWideChar(_SafeMsg);
+
+  Result := SendMessage(_TargetHWND, WM_COPYDATA, 0, LPARAM(@_CDS)) = 1;
+end;
+
+{ AreArraysEqual ------------------------------------------------------------- }
 
 function AreStaticArraysEqual(const A, B; const ASize: NativeInt): Boolean;
 begin
@@ -137,7 +167,6 @@ begin
   // TRectF.Contains returns True if the point is within the rectangle.
   Result := TRectF.Create(0, 0, Self.ClientWidth, Self.ClientHeight).Contains(_RelativePos);
 end;
-
 
 { TControlHelper ------------------------------------------------------------- }
 
@@ -163,7 +192,7 @@ begin
   Result := TVector.Create(X, Y, W);
 end;
 
-{ Safe check if a vector is near zero length }
+{ Safe check if a vector is near zero length --------------------------------- }
 function IsVectorEmpty(const V: TVector): Boolean; inline;
 begin
   Result := (Abs(V.X) < 1E-6) and (Abs(V.Y) < 1E-6);
@@ -199,24 +228,25 @@ begin
     Result := Self;
 end;
 
-// Start sleep protection
-// Flag ...
-// ES_CONTINUOUS        : Keep settings consistent (use alone when turned off)
-// ES_SYSTEM_REQUIRED   : Preventing the system from entering sleep mode
-// ES_DISPLAY_REQUIRED  : Prevent the monitor from turning off
-// ES_AWAYMODE_REQUIRED : For background operations such as media servers (Away Mode)
+{ Start sleep protection ----------------------------------------------------- }
+{  Flag ...                                                                    }
+{  ES_CONTINUOUS        : Keep settings consistent (use alone when turned off) }
+{  ES_SYSTEM_REQUIRED   : Preventing the system from entering sleep mode       }
+{  ES_DISPLAY_REQUIRED  : Prevent the monitor from turning off                 }
+{  ES_AWAYMODE_REQUIRED : For background operations such as media servers (Away Mode) }
+
 function PreventSleep: Boolean;
 begin
   var _result: EXECUTION_STATE := SetThreadExecutionState(
                                     ES_CONTINUOUS or
-                                    ES_SYSTEM_REQUIRED or   // Preventing System Power Saving
-                                    ES_DISPLAY_REQUIRED     // Screen Off Prevention
+                                    ES_SYSTEM_REQUIRED or                       // Preventing System Power Saving
+                                    ES_DISPLAY_REQUIRED                         // Screen Off Prevention
                                   );
 
   Result := _result <> 0;
 end;
 
-// Turn off sleep protection (restore)
+{ Turn off sleep protection (restore) ---------------------------------------- }
 procedure AllowSleep;
 begin
   SetThreadExecutionState(ES_CONTINUOUS);
@@ -313,43 +343,67 @@ begin
   end;
 end;
 
-{ ... CaptureScreen / for Windows PlatForm --------------------------------------- }
+{ CaptureScreen / for Windows PlatForm --------------------------------------- }
 
-procedure CaptureScreenToFile(const AFileName: string);
-begin
-  var _dc: HDC := GetDC(0);
-  var _vclBmp: Vcl.Graphics.TBitmap := Vcl.Graphics.TBitmap.Create;
-  try
-    _vclBmp.SetSize(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-    BitBlt(_vclBmp.Canvas.Handle, 0, 0, _vclBmp.Width, _vclBmp.Height, _dc, 0, 0, SRCCOPY);
-    _vclBmp.PixelFormat := Vcl.Graphics.TPixelFormat.pf32bit;
-    _vclBmp.SaveToFile(AFileName);
-  finally
-    _vclBmp.Free;
-    ReleaseDC(0, _dc);
-  end;
-end;
-
-procedure CaptureCleanWorkArea(const AFileName: string);
+function StartCaptureToFile(const AFileName: string): Boolean;
 var
   _WorkRect: TRect;
 begin
+  Result := False;
+
   if not SystemParametersInfo(SPI_GETWORKAREA, 0, @_WorkRect, 0) then
   begin
     _WorkRect := Rect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
   end;
 
-  var _dc: HDC := GetDC(0);
-  var _vclBmp: Vcl.Graphics.TBitmap := Vcl.Graphics.TBitmap.Create;
+  var _ScreenDC:Winapi.Windows.HDC := GetDC(0);
+  var _ScreenShot := FMX.Graphics.TBitmap.Create(_WorkRect.Width, _WorkRect.Height);
   try
-    _vclBmp.SetSize(_WorkRect.Width, _WorkRect.Height);
-    BitBlt(_vclBmp.Canvas.Handle, 0, 0, _vclBmp.Width, _vclBmp.Height,
-           _dc, _WorkRect.Left, _WorkRect.Top, SRCCOPY);
-    _vclBmp.PixelFormat := Vcl.Graphics.TPixelFormat.pf32bit;
-    _vclBmp.SaveToFile(AFileName);
+    var _MemDC: Winapi.Windows.HDC := CreateCompatibleDC(_ScreenDC);
+    try
+      var _hBitmap: Winapi.Windows.HBitmap:= CreateCompatibleBitmap(_ScreenDC, _WorkRect.Width, _WorkRect.Height);
+      try
+        SelectObject(_MemDC, _hBitmap);
+        BitBlt(_MemDC, 0, 0, _WorkRect.Width, _WorkRect.Height, _ScreenDC, 0, 0, SRCCOPY);
+        var _BitmapData: TBitmapData;
+        if _ScreenShot.Map(TMapAccess.Write, _BitmapData) then
+        try
+          VAR _BitmapInfo: TBitmapInfo;
+          FillChar(_BitmapInfo, SizeOf(_BitmapInfo), 0);
+          _BitmapInfo.bmiHeader.biSize       := SizeOf(TBitmapInfoHeader);
+          _BitmapInfo.bmiHeader.biWidth      := _WorkRect.Width;
+          _BitmapInfo.bmiHeader.biHeight     := _WorkRect.Height * (-1);  // Negative = top-down DIB
+          _BitmapInfo.bmiHeader.biPlanes     := 1;
+          _BitmapInfo.bmiHeader.biBitCount   := 32;
+          _BitmapInfo.bmiHeader.biCompression:= BI_RGB;
+
+          GetDIBits(_MemDC, _hBitmap, 0, _WorkRect.Height, _BitmapData.Data, _BitmapInfo, DIB_RGB_COLORS);
+        finally
+          _ScreenShot.Unmap(_BitmapData);
+        end;
+      finally
+        DeleteObject(_hBitmap);
+      end;
+    finally
+      DeleteDC(_MemDC);
+    end;
   finally
-    _vclBmp.Free;
-    ReleaseDC(0, _dc);
+    ReleaseDC(0, _ScreenDC);
+  end;
+
+  _ScreenShot.SaveToFile(AFileName);
+  Result := FileExists(AFileName);
+end;
+
+function CaptureControlToFile(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
+begin
+  Result := False;
+  var _Screenshot: FMX.Graphics.TBitmap := AControl.MakeScreenshot;
+  try
+    _Screenshot.SaveToFile(ASavefile);
+    Result := FileExists(ASavefile);
+  finally
+    _Screenshot.Free;
   end;
 end;
 
@@ -370,14 +424,14 @@ begin
   Application.ProcessMessages;
 end;
 
-{ From Winapi.Windows }
+{ From Winapi.Windows -------------------------------------------------------- }
 
 function WinGetTickCount(): Cardinal;
 begin
   Result := Winapi.Windows.GetTickCount;
 end;
 
-{ ... for Windows PlatForm --------------------------------------------------- }
+{ CheckPointF ---------------------------------------------------------------- }
 
 function CheckPointF(const PF1, PF2: TPointF): Boolean;
 begin
@@ -449,7 +503,7 @@ begin
 
   { Hue sector 0~5  (each sector spans 60°) }
   var _Hi := Trunc(H / 60.0) mod 6;
-  var _F  := (H / 60.0) - Trunc(H / 60.0);   { fractional part within sector }
+  var _F  := (H / 60.0) - Trunc(H / 60.0);                                      // fractional part within sector
   var _P  := V * (1.0 - S);
   var _Q  := V * (1.0 - S * _F);
   var _T  := V * (1.0 - S * (1.0 - _F));
@@ -523,7 +577,7 @@ begin
   RGB2HSL(_RGBCOlor, H, S, L);
 end;
 
-{ Copy From System.UIConsts }
+{ Copy From System.UIConsts -------------------------------------------------- }
 
 function MakeAlphaColor(const R, G, B: Byte; const A: Byte = $FF): TAlphaColor; overload;
 begin
@@ -549,6 +603,34 @@ end;
 function GetColorFromHSL(AHH, ASS, ALL: Single): TAlphaColor;
 begin
   Result :=  SYstem.UIConsts.HSLtoRGB(AHH, ASS, ALL);
+end;
+
+
+{ BleandCOlor ---------------------------------------------------------------- }
+
+function BlendColor(const ABaseColor, AOverlayColor: TAlphaColor): TAlphaColor; overload;
+begin
+  var _BaseColorRec         := TAlphaColorRec(ABaseColor);
+  var _OverlayColorRec      := TAlphaColorRec(AOverlayColor);
+  var _BaseAlpha: Single    := _BaseColorRec.A / 255;
+  var _OverlayAlpha: Single := _OverlayColorRec.A / 255;
+  var _OutAlpha: Single     := _OverlayAlpha + (_BaseAlpha * (1 - _OverlayAlpha));
+
+  if _OutAlpha > 0 then begin
+    TAlphaColorRec(Result).R := Round(((_OverlayColorRec.R * _OverlayAlpha) + (_BaseColorRec.R * _BaseAlpha * (1 - _OverlayAlpha))) / _OutAlpha);
+    TAlphaColorRec(Result).G := Round(((_OverlayColorRec.G * _OverlayAlpha) + (_BaseColorRec.G * _BaseAlpha * (1 - _OverlayAlpha))) / _OutAlpha);
+    TAlphaColorRec(Result).B := Round(((_OverlayColorRec.B * _OverlayAlpha) + (_BaseColorRec.B * _BaseAlpha * (1 - _OverlayAlpha))) / _OutAlpha);
+    TAlphaColorRec(Result).A := Round(_OutAlpha * 255);
+  end
+  else
+    Result := TAlphaColors.Null;
+end;
+
+function BlendColor(const ABaseColor, AOverlayColor: TAlphaColor; const AOverlayOpacity: Single): TAlphaColor; overload;
+begin
+  var _OverlayColorRec := TAlphaColorRec(AOverlayColor);
+  _OverlayColorRec.A := round(_OverlayColorRec.A * Max(Min(AOverlayOpacity, 1), 0));
+  Result := BlendColor(ABaseColor, _OverlayColorRec.Color);
 end;
 
 { IIF.Cast ------------------------------------------------------------------- }
@@ -587,7 +669,7 @@ end;
 function LerpAngle(Current, Target, Amount: Double): Double;
 begin
   var _Diff: Double := Target - Current;
-  // Normalize the angle difference to the range -Pi to Pi
+  { Normalize the angle difference to the range -Pi to Pi }
   while _Diff < -Pi do _Diff := _Diff + 2 * Pi;
   while _Diff > Pi  do _Diff := _Diff - 2 * Pi;
 
@@ -605,19 +687,6 @@ end;
 function Set_Mag(V: TPointF; Mag: Single): TPointF;
 begin
   Result := V.Normalize * Mag;
-end;
-
-function CaptureComponent(const AControl: FMX.Controls.TControl; const ASavefile: string): Boolean;
-begin
-  Result := False;
-  var _Screenshot: FMX.Graphics.TBitmap := AControl.MakeScreenshot;
-  try
-    // reserved ... Image1.Bitmap.Assign(LScreenshot);
-    _Screenshot.SaveToFile(ASavefile);
-    Result := FileExists(ASavefile);
-  finally
-    _Screenshot.Free;
-  end;
 end;
 
 function ReadAllText_Unicode(const AFilePath: string=''): string;
@@ -648,7 +717,7 @@ begin
   Result := FileExists(AFilePath);
 end;
 
-{ Deprecating ... }
+{ Deprecating ---------------------------------------------------------------- }
 
 function GetDirectionColor2(const ATheta: Double): TAlphaColor;
 var

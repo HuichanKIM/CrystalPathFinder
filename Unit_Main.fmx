@@ -35805,5 +35805,10 @@ object FormMain: TFormMain
       ShortCut = 24641
       OnExecute = Action_PrivateExecute
     end
+    object Action_CaptureFocused: TAction
+      Text = 'Action_CaptureFocused'
+      ShortCut = 16473
+      OnExecute = Action_CaptureFocusedExecute
+    end
   end
 end

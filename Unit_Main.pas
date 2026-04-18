@@ -217,6 +217,7 @@ type
     Action_Private: TAction;
     Frame_Histogram1: TFrame_Histogram;
     ShadowEffect4: TShadowEffect;
+    Action_CaptureFocused: TAction;
 
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -294,6 +295,7 @@ type
     procedure Layout_CustomWeightMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Single);
     procedure Edit_InputNameKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
     procedure Layout_CustomWeightMouseLeave(Sender: TObject);
+    procedure Action_CaptureFocusedExecute(Sender: TObject);
   private
     FPathFinder: TTileMap;
     FMapWeights: TArray<Byte>;
@@ -656,8 +658,8 @@ end;
 procedure TFormMain.LoadIniOptions();
 begin
   var _IniConfig := TMemIniFile.create(ChangeFileExt(ParamStr(0), '.ini'));
-  var _ColorStr1 := AlphaColorToString(TAlphaColors.Yellow);            // = 'Yellow'
-  var _ColorStr2 := AlphaColorToString(TAlphaColors.Lightgray);         // = 'LightGray'
+  var _ColorStr1 := AlphaColorToString(TAlphaColors.Yellow);                    // = 'Yellow'
+  var _ColorStr2 := AlphaColorToString(TAlphaColors.Lightgray);                 // = 'LightGray'
 
   if Assigned(_IniConfig) then
   with _IniConfig do
@@ -794,6 +796,11 @@ end;
 procedure TFormMain.Label_TitleClick(Sender: TObject);
 begin
   if FLockMapFlag then Exit;
+  { Reserved for Debug ...
+  var _flag := Random(9);
+  if not SendLogToViewer('Test log: Start Crystal Path Finder.', _flag) then
+  ShowMessage('Failed to Log To Viewer.');
+  }
 end;
 
 procedure TFormMain.FormKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
@@ -3103,8 +3110,7 @@ begin
   TTask.Run(procedure
   begin
     var _SavePath := FSnapshotPath + Format('ScreenSnap_%s.png', [FormatDateTime('yymmddhhnnss', Now)]);
-    CaptureCleanWorkArea(_SavePath);
-    if FileExists(_SavePath) then
+    if StartCaptureToFile(_SavePath) then       //CaptureControlToFile(LayoutRoot, _SavePath);
     TThread.Queue(nil, procedure
     begin
       ShowToastAlert('Saved a Screen Capture');
@@ -3166,6 +3172,30 @@ begin
   // ------------------------------------------------------------------------ //
   PaintBox_Map.Repaint;
   // ------------------------------------------------------------------------ //
+end;
+
+{ Hidden ... }
+
+procedure TFormMain.Action_CaptureFocusedExecute(Sender: TObject);
+begin
+  var _Obj: IControl := Self.ObjectAtPoint(Screen.MousePos);
+
+   if (_Obj <> nil) and (_Obj.GetObject is TControl) then
+  begin
+    var _Target := TControl(_Obj.GetObject);
+
+    if _Target <> nil then
+    begin
+      var _SavePath := FSnapshotPath + Format('ControlSnap_%s.png', [FormatDateTime('yymmddhhnnss', Now)]);
+      if CaptureControlToFile(_Target, _SavePath) then
+      TThread.Queue(nil, procedure
+      begin
+        ShowToastAlert('Saved - '+ _Target.Name);
+      end);
+    end;
+  end
+  else
+    ShowMessage('Not Found Control');
 end;
 
 procedure TFormMain.Action_CenterMapExecute(Sender: TObject);
